@@ -2,7 +2,7 @@ library(here)
 library(purrr)
 library(tidyverse)
 library(readr)
-
+# download here https://cecas.clemson.edu/~ahoover/pedometer/
 url = "https://cecas.clemson.edu/tracking/Pedometer/Data.zip"
 
 options(timeout=300)
@@ -70,12 +70,14 @@ ped_data_proc <-
   ped_data %>%
   mutate(cat_activity = paste0("walk_", tolower(loc)),
          cat_step_type = ifelse(is.na(foot), "none", foot),
-         id_study = "clemson_ped") %>%
+         id_study = "clemson_ped",
+         sample_rate = 15) %>%
   select(X, Y, Z,
          tm_dttm = time, id_subject = id, ind_step = step,
          cat_step_type,
          cat_activity,
-         id_study)
+         id_study,
+         sample_rate)
 
 write_csv(ped_data_proc, here::here("data/processed/clemson_ped.csv.gz"))
 
