@@ -94,12 +94,12 @@ fit_all_algorithms = function(data) {
     rename(steps_vs = steps)
   message("vs completed")
   adept_res = estimate_steps_adept(data,
-                                   sample_rate = 15,
+                                   sample_rate = sample_rate,
                                    templates = template_list) %>%
     rename(steps_adept = steps)
   message("adept completed")
   sdt_res = estimate_steps_sdt(data,
-                               sample_rate = 15) %>%
+                               sample_rate = sample_rate) %>%
     rename(steps_sdt = steps)
   message("sdt completed")
   truth = data %>%
@@ -118,24 +118,162 @@ fit_all_algorithms = function(data) {
   out
 }
 
+fit_all_algorithms_resampled = function(data) {
+  sample_rate = data$sample_rate[1]
+  id_subject = data$id_subject[1]
+  id_study = data$id_study[1]
+  sample_rate_old = data$sample_rate_old[1]
+  cat_activity = ifelse("cat_activity" %in% colnames(data), data$cat_activity[1], NA)
+  if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
+    data = data %>%
+      rename(HEADER_TIME_STAMP = tm_dttm)
+  }
+
+  oak_res = estimate_steps_forest(data) %>%
+    rename(steps_oak = steps)
+  message("oak completed")
+  vs_res = estimate_steps_verisense(data,
+                                    method = "revised",
+                                    sample_rate = sample_rate) %>%
+    rename(steps_vs = steps)
+  message("vs completed")
+  adept_res = estimate_steps_adept(data,
+                                   sample_rate = sample_rate,
+                                   templates = template_list) %>%
+    rename(steps_adept = steps)
+  message("adept completed")
+  sdt_res = estimate_steps_sdt(data,
+                               sample_rate = sample_rate) %>%
+    rename(steps_sdt = steps)
+  message("sdt completed")
+
+  out =
+    oak_res %>%
+    full_join(vs_res) %>%
+    full_join(adept_res) %>%
+    full_join(sdt_res) %>%
+    mutate(id_subject = id_subject,
+           id_study = id_study,
+           cat_activity = cat_activity,
+           sample_rate = sample_rate,
+           sample_rate_old = sample_rate_old)
+  out
+}
+
 process_sc_results = function(file){
   df = readr::read_csv(file)
-  id_study = ifelse(grepl("clemson", file), "clemson_ped","oxwalk")
-  id_subject =  ifelse(grepl("clemson", file),
-                       sub(".*\\_\\/(.+)\\_walk.*", "\\1", file),
-                       str_split(sub(".*oxwalk\\_\\/(.+)\\_.*", "\\1", file), "_")[[1]][1])
-  cat_activity = ifelse(grepl("clemson", file),
-                        paste0(str_split(file, "_")[[1]][3],
-                               "_",
-                               str_split(file, "_")[[1]][4]),
+  id_study = ifelse(grepl("egular", file), "clemson_ped","oxwalk")
+  id_subject =  ifelse(grepl("egular", file),
+                       str_split(sub(".*acc\\_(.+)\\_.*", "\\1", file), "_")[[1]][1],
+                       sub(".*acc\\_(.+)\\_.*", "\\1", file))
+  cat_activity = ifelse(grepl("egular", file),
+                        paste0("walk_", tolower(sub(".*\\_(.+)\\_15.*", "\\1", file))),
                         NA)
-  sample_rate = ifelse(grepl("clemson", file),
-                       str_split(file, "_")[[1]][5],
-                       str_split(file, "_")[[1]][3])
+  sample_rate = ifelse(grepl("egular", file),
+                       15,
+                       sub(".*_(.+)Hz.*", "\\1", file))
   df %>%
     rename(steps_sc = Steps) %>%
     mutate(id_study = id_study,
            id_subject = id_subject,
            cat_activity = cat_activity,
            sample_rate = sample_rate)
+}
+
+process_sc_results_resampled = function(file){
+  df = readr::read_csv(file)
+  id_study = ifelse(grepl("egular", file), "clemson_ped","oxwalk")
+  id_subject =  ifelse(grepl("egular", file),
+                       str_split(sub(".*acc\\_(.+)\\_.*", "\\1", file), "_")[[1]][1],
+                       sub(".*acc\\_(.+)\\_.*", "\\1", file))
+  cat_activity = ifelse(grepl("egular", file),
+                        paste0("walk_", tolower(sub(".*\\_(.+)\\_15to.*", "\\1", file))),
+                        NA)
+  sample_rate = 30
+  sample_rate_old =  ifelse(grepl("egular", file),
+                       15,
+                       sub(".*_(.+)to30.*", "\\1", file))
+  df %>%
+    rename(steps_sc = Steps) %>%
+    mutate(id_study = id_study,
+           id_subject = id_subject,
+           cat_activity = cat_activity,
+           sample_rate = sample_rate,
+           sample_rate_old = sample_rate_old)
+}
+
+
+process_acti_results = function(file, clem, ox){
+  id_study = ifelse(grepl("egular", file), "clemson_ped", "oxwalk")
+  subject =  ifelse(grepl("egular", file),
+                      sub(".*P(.+)\\_.*", "\\1", file),
+                      sub(".*acc\\_(.+)\\_.*", "\\1", file))
+  activity = ifelse(grepl("egular", file),
+                        paste0("walk_", tolower(sub(".*\\_(.+)1sec.*", "\\1", file))),
+                        NA)
+  rate = ifelse(grepl("egular", file),
+                       15,
+                       sub(".*wrist(.+)1sec.*", "\\1", file))
+  start_time = ifelse(id_study == "clemson_ped",
+                      clem %>% filter(id_subject == subject &
+                                      cat_activity == activity) %>%
+                        arrange(time) %>%
+                        slice(1) %>%
+                        select(time),
+           ox %>% filter(id_subject == subject &
+                         sample_rate == rate) %>%
+             arrange(time) %>%
+             slice(1) %>% select(time))[[1]]
+
+  readr::read_csv(file,
+                  col_names = c("X", "Y", "Z", "steps_acti"),
+                  skip = 10) %>%
+    mutate(
+      id_subject = subject,
+      cat_activity = activity,
+      sample_rate = rate,
+      time = lubridate::floor_date(start_time + as.period(row_number()-1, unit = "seconds"),
+                                   unit = "1 seconds")
+    ) %>%
+    select(-c(X,Y,Z))
+
+
+}
+
+process_acti_results_resampled = function(file, clem, ox){
+  id_study = ifelse(grepl("egular", file), "clemson_ped", "oxwalk")
+  subject =  ifelse(grepl("egular", file),
+                    str_split(sub(".*acc\\_(.+)\\_.*", "\\1", file), "_")[[1]][1],
+                    sub(".*acc\\_(.+)\\_.*", "\\1", file))
+  activity = ifelse(grepl("egular", file),
+                    paste0("walk_", tolower(sub(".*\\_(.+)\\_15to.*", "\\1", file))),
+                    NA)
+  rate_orig = ifelse(grepl("egular", file),
+                     15,
+                     sub(".*\\_(.+)to30.*", "\\1", file))
+  rate_new = 30
+  start_time = ifelse(id_study == "clemson_ped",
+                      clem %>% filter(id_subject == subject &
+                                        cat_activity == activity) %>%
+                        arrange(time) %>%
+                        slice(1) %>%
+                        select(time),
+                      ox %>% filter(id_subject == subject &
+                                      sample_rate == rate_orig) %>%
+                        arrange(time) %>%
+                        slice(1) %>% select(time))[[1]]
+
+  readr::read_csv(file,
+                  col_names = c("X", "Y", "Z", "steps_acti"),
+                  skip = 10) %>%
+    mutate(
+      id_subject = subject,
+      cat_activity = activity,
+      sample_rate = rate_new,
+      sample_rate_old = rate_orig,
+      time = lubridate::floor_date(start_time + as.period(row_number()-1, unit = "seconds"),
+                                   unit = "1 seconds")
+    ) %>%
+    select(-c(X,Y,Z))
+
 }
