@@ -1,6 +1,19 @@
-# conda create -n stepcount python=3.9 openjdk pip
 conda activate stepcount
-# pip install stepcount
 
-bash code/bash/command.sh
-bash code/bash/command_resampled.sh
+for i in data/stepcount/clemson/*.csv.gz;
+do
+  echo "${i}";
+  stepcount ${i} -o results/stepcount/clemson
+done
+
+for i in data/stepcount/marea/*.csv.gz;
+do
+  echo "${i}";
+  stepcount ${i} -o results/stepcount/marea
+done
+
+for i in data/stepcount/oxwalk/*.csv.gz;
+do
+  echo "${i}";
+  stepcount ${i} -o results/stepcount/oxwalk
+done

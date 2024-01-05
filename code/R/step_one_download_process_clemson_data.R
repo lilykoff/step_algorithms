@@ -16,6 +16,8 @@ acc_ped_files <- ped_files[-grep("steps.txt", ped_files)]
 step_files <- ped_files[grep("steps.txt", ped_files)]
 # 9 columns are wrist xyz, hip xyz and ankle xyz
 
+start = lubridate::floor_date(as.POSIXct("2023-10-23 10:00:00", tz = "UTC"), unit = "seconds")
+
 get_and_join_files <-
   function(acc_ped_file){
     temp = readr::read_table(
@@ -45,41 +47,59 @@ get_and_join_files <-
     step_file = step_files[grep(id, step_files)][grep(loc,step_files[grep(id, step_files)])]
     step_locs = read_table(step_file, col_names = c("ind", "foot"))
 
-    temp %>%
-      left_join(step_locs)
+    temp =
+      temp %>%
+      left_join(step_locs) %>%
+      mutate(ind_step = case_when(is.na(foot) ~ 0,
+                                  foot == "right" ~ 1,
+                                  foot == "left" ~ 1,
+                                  TRUE ~ 0)) %>%
+      mutate(
+        time_s = (ind - 1) / 15,
+        time = start + as.period(time_s, unit = "seconds"),
+        cat_activity = paste0("walk_", tolower(loc)),
+        cat_step_type = ifelse(is.na(foot), "none", foot),
+        id_study = "clemson",
+        id_subject = sprintf("P%02.f", as.numeric(id)),
+        sample_rate = 15
+      ) %>%
+      select(
+        X = wrist_x,
+        Y = wrist_y,
+        Z = wrist_z,
+        tm_dttm = time,
+        id_subject,
+        ind_step,
+        cat_step_type,
+        cat_activity,
+        id_study,
+        sample_rate
+      )
+    id_new = temp$id_subject[1]
+    activity =  temp$cat_activity[1]
+    fname = paste0("clemson-", id_new, "-", activity,
+                   "-", "raw15Hz.csv.gz")
+    if(!file.exists(here::here("data", "reorganized", "clemson", id_new))){
+      dir.create(here::here("data", "reorganized", "clemson", id_new))
+    }
+    readr::write_csv(temp, here::here("data", "reorganized", "clemson", id_new, fname))
+    temp
   }
 
 ped_data <- map(.x = acc_ped_files,
                 .f = get_and_join_files) %>%
   bind_rows()
 
-start = lubridate::floor_date(as.POSIXct("2023-10-23 10:00:00", tz = "UTC"), unit = "seconds")
 
-ped_data <-
-  ped_data %>%
-  mutate(
-    step = ifelse(is.na(foot), 0, 1)
-  ) %>%
-  rename(X = wrist_x, Y = wrist_y, Z = wrist_z) %>%
-  group_by(id_type) %>%
-  mutate(time_s = (ind-1)/15,
-         time = start + as.period(time_s, unit = "seconds")) %>%
-  ungroup()
+write_csv(ped_data, here::here("data/processed/clemson.csv.gz"))
 
-ped_data_proc <-
-  ped_data %>%
-  mutate(cat_activity = paste0("walk_", tolower(loc)),
-         cat_step_type = ifelse(is.na(foot), "none", foot),
-         id_study = "clemson_ped",
-         sample_rate = 15) %>%
-  select(X, Y, Z,
-         tm_dttm = time, id_subject = id, ind_step = step,
-         cat_step_type,
-         cat_activity,
-         id_study,
-         sample_rate)
-
-write_csv(ped_data_proc, here::here("data/processed/clemson_ped.csv.gz"))
+# eda
+# ped_data %>%
+#   filter(id_subject == "P01" & cat_activity == "walk_irregular") %>%
+#   mutate(vm = sqrt(X^2  + Y^2  + Z^2)) %>%
+#   ggplot(aes(x = tm_dttm, y = vm))+
+#   geom_line()+
+#   geom_point(aes(x = tm_dttm, y =ind_step))
 
 system("rm clemsonped.zip")
 

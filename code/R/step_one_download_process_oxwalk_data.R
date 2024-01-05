@@ -27,6 +27,13 @@ get_and_join_files <-
         mutate(id_study = "oxwalk",
                id_subject = id,
                sample_rate = sample_rate)
+    fname = paste0("oxwalk-", id,
+                   "-", "raw", sample_rate, "Hz.csv.gz")
+    if(!file.exists(here::here("data", "reorganized", "oxwalk", id))){
+      dir.create(here::here("data", "reorganized", "oxwalk", id))
+    }
+    readr::write_csv(temp, here::here("data", "reorganized", "oxwalk", id, fname))
+    temp
   }
 
 ox_data <- map(.x = c(wrist_files_100, wrist_files_25),

@@ -2,90 +2,91 @@ library(walking)
 library(tidyverse)
 library(readr)
 options(digits.secs = 3)
-clemson_ped = readr::read_csv(here::here("data/processed/clemson_ped.csv.gz"))
-ox = readr::read_csv(here::here("data/processed/ox_data.csv.gz"))
 
 source(here::here("code/R/utils.R"))
 
+clemson_files = list.files(here::here("data", "reorganized",
+                                      "clemson"),
+                           recursive = TRUE,
+                           full.names = TRUE)
 
-clemson_list = split(clemson_ped, f = list(clemson_ped$id_subject,
-                                           clemson_ped$cat_activity))
-ox_list = split(ox, f = list(ox$id_study,
-                             ox$id_subject,
-                             ox$sample_rate))
-clemson_res =
-  map(.x = clemson_list,
-    .f = fit_all_algorithms) %>%
-  bind_rows()
+oxwalk_files = list.files(here::here("data", "reorganized",
+                                                     "oxwalk"),
+                                          recursive = TRUE,
+                                          full.names = TRUE)
 
-ox_res = map(.x = ox_list,
-             .f = fit_all_algorithms) %>%
-  bind_rows() %>%
-
-write_csv(clemson_res, here::here("results/adept_oak_vs_sdt/steps_aovs_clemson.csv"))
-write_csv(ox_res, here::here("results/adept_oak_vs_sdt/steps_aovs_ox.csv"))
-
-
-rm(list = ls())
-clemson_ped = readr::read_csv(here::here("data/processed/clemson_ped_resampled.csv.gz"))
-ox = readr::read_csv(here::here("data/processed/ox_data_resampled.csv.gz"))
-
-# fix sample rates
-clemson_ped =
-  clemson_ped %>%
-  mutate(
-    sample_rate_old = sample_rate,
-    sample_rate = 30
-  )
-
-ox =
-  ox %>%
-  mutate(
-    sample_rate_old = sample_rate,
-    sample_rate = 30
-  )
-
-clemson_list = split(clemson_ped, f = list(clemson_ped$id_subject,
-                                           clemson_ped$cat_activity))
-ox_list = split(ox, f = list(ox$id_study,
-                             ox$id_subject,
-                             ox$sample_rate_old))
-clemson_res =
-  map(.x = clemson_list,
-      .f = fit_all_algorithms_resampled) %>%
-  bind_rows()
-
-ox_res = map(.x = ox_list,
-             .f = fit_all_algorithms_resampled) %>%
-  bind_rows()
-
-# write_csv(clemson_res, here::here("results/adept_oak_vs_sdt/steps_aovs_clemson_resampled.csv"))
-# write_csv(ox_res, here::here("results/adept_oak_vs_sdt/steps_aovs_ox_resampled.csv"))
+marea_files = list.files(here::here("data", "reorganized",
+                                     "marea"),
+                          recursive = TRUE,
+                          full.names = TRUE)
+# just get the raw files
+clemson_files = clemson_files[grepl("step_estimates", clemson_files) == FALSE]
+oxwalk_files = oxwalk_files[grepl("step_estimates", oxwalk_files) == FALSE]
+marea_files = marea_files[grepl("step_estimates", marea_files) == FALSE]
 
 
-# add steps_truth to resampled data
+map(c(clemson_files, oxwalk_files, marea_files),
+    .f = function(x){
+      df = readr::read_csv(x)
+      if(grepl("clemson", x) == TRUE){
+        study = "clemson"
+        id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", x)
+        fname_root = sub(".*\\/(.+).csv.gz.*", "\\1", x)
+        fname_root_new = paste0(fname_root, "-steps_")
+      }
+      if(grepl("oxwalk", x) == TRUE){
+        study = "oxwalk"
+        id = sub(".*oxwalk\\-(.+)-r.*", "\\1", x)
+        fname_root =   sub(".*\\/(.+).csv.gz.*", "\\1", x)
+        fname_root_new = paste0(fname_root, "-steps_")
+      }
+      if(grepl("marea", x) == TRUE){
+        study = "marea"
+        id =  regmatches(x, gregexpr("(?<=marea\\-)[a-zA-Z0-9]{3}", x, perl = TRUE))[[1]][1]
+        fname_root =   sub(".*\\/(.+).csv.gz.*", "\\1", x)
+        fname_root_new = paste0(fname_root, "-steps_")
+      }
+      if (!"HEADER_TIME_STAMP" %in% colnames(df)) {
+        df = df %>%
+          rename(HEADER_TIME_STAMP = tm_dttm)
+      }
+      srate = df$sample_rate[1]
 
-clem_orig = readr::read_csv(here::here("results/adept_oak_vs_sdt/steps_aovs_clemson.csv"))
-steps_truth = clem_orig %>%
-  select(time, steps_truth, id_subject, cat_activity)
-# clem_resamp = readr::read_csv(here::here("results/adept_oak_vs_sdt/steps_aovs_clemson_resampled.csv"))
-
-clem_resamp_truth =
-  clemson_res %>%
-  left_join(steps_truth)
-
-write_csv(clem_resamp_truth, here::here("results/adept_oak_vs_sdt/steps_aovs_clemson_resampled.csv"))
-
-
-
-ox_orig = readr::read_csv(here::here("results/adept_oak_vs_sdt/steps_aovs_ox.csv"))
-steps_truth = ox_orig %>%
-  select(time, steps_truth, id_subject, sample_rate_old = sample_rate)
-# clem_resamp = readr::read_csv(here::here("results/adept_oak_vs_sdt/steps_aovs_clemson_resampled.csv"))
-
-ox_resamp_truth =
-  ox_res %>%
-  left_join(steps_truth)
-
-write_csv(ox_resamp_truth, here::here("results/adept_oak_vs_sdt/steps_aovs_ox_resampled.csv"))
-
+      # create directory if doesn't already exist
+      if (!file.exists(here::here("data", "reorganized", study, id, "step_estimates"))) {
+        dir.create(here::here("data", "reorganized", study, id, "step_estimates"))
+      }
+      # check if files exist, then fit algorithms if they don't
+      if(!file.exists(here::here("data", "reorganized", study, id, "step_estimates",
+                                 paste0(fname_root_new, "oak.csv")))){
+        oak = fit_oak(df)
+        readr::write_csv(oak, here::here("data", "reorganized", study, id, "step_estimates",
+                                         paste0(fname_root_new, "oak.csv")))
+      }
+      if(!file.exists(here::here("data", "reorganized", study, id, "step_estimates",
+                                 paste0(fname_root_new, "adept.csv")))){
+        adept = fit_adept(df, sample_rate = srate)
+        readr::write_csv(adept, here::here("data", "reorganized", study, id, "step_estimates",
+                                         paste0(fname_root_new, "adept.csv")))
+      }
+      if(!file.exists(here::here("data", "reorganized", study, id, "step_estimates",
+                                 paste0(fname_root_new, "sdt.csv")))){
+        sdt = fit_sdt(df, sample_rate = srate)
+        readr::write_csv(sdt, here::here("data", "reorganized", study, id, "step_estimates",
+                                         paste0(fname_root_new, "sdt.csv")))
+      }
+      if(!file.exists(here::here("data", "reorganized", study, id, "step_estimates",
+                                 paste0(fname_root_new, "vs.csv")))){
+        vs = fit_vs(df, sample_rate = srate)
+        readr::write_csv(vs, here::here("data", "reorganized", study, id, "step_estimates",
+                                         paste0(fname_root_new, "vs.csv")))
+      }
+      if(grepl("resampled", x) == FALSE &
+         !file.exists(here::here("data", "reorganized", study, id, "step_estimates",
+                                       paste0(fname_root_new, "truth.csv")))){
+        truth = get_truth(df)
+        readr::write_csv(truth, here::here("data", "reorganized", study, id, "step_estimates",
+                                           paste0(fname_root_new, "truth.csv")))
+      }
+      message(paste0(fname_root, " finished"))
+})

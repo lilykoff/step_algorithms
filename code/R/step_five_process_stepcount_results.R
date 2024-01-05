@@ -1,49 +1,54 @@
 library(tidyverse)
 options(digits.secs = 3)
 source(here::here("code/R/utils.R"))
-files = list.files(here::here("results/stepcount/original"), full.names = TRUE,
+
+files = list.files(here::here("results/stepcount"), full.names = TRUE,
                      recursive = TRUE)
 
-target_csvs = files[grep("\\-Steps.csv", files)]
+clemson_csvs = files[grepl("\\-Steps.csv", files) == TRUE & grepl("clemson", files) == TRUE]
+ox_csvs =  files[grepl("\\-Steps.csv", files) == TRUE & grepl("oxwalk", files) == TRUE]
+marea_csvs = files[grepl("\\-Steps.csv", files) == TRUE & grepl("marea", files) == TRUE]
 
-clemson_csvs = target_csvs[grep("egular", target_csvs)]
-ox_csvs = target_csvs[-grep("egular", target_csvs)]
+map(clemson_csvs, function(file) {
+  df = readr::read_csv(file) %>%
+    rename(steps_sc = Steps)
+  id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", file)
+  if (!file.exists(here::here("data", "reorganized", "clemson", id, "step_estimates"))) {
+    dir.create(here::here("data", "reorganized", "clemson", id, "step_estimates"))
+  }
+  fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
+  fname = paste0(fname_root, "-steps_stepcount.csv")
+  readr::write_csv(df,
+                   here::here("data", "reorganized", "clemson", id, "step_estimates",
+                              fname))
+})
 
-processed_stepcount_clemson =
-  map(.x = clemson_csvs,
-      .f = process_sc_results) %>%
-  bind_rows()
-
-processed_stepcount_ox =
-  map(.x = ox_csvs,
-      .f = process_sc_results) %>%
-  bind_rows()
-
-write_csv(processed_stepcount_clemson, here::here("results","stepcount", "processed", "steps_sc_clemson.csv"))
-write_csv(processed_stepcount_ox, here::here("results","stepcount", "processed", "steps_sc_ox.csv"))
-
-# resampled
-
-files = list.files(here::here("results/stepcount/resampled"), full.names = TRUE, recursive = TRUE)
-
-target_csvs = files[grep("\\-Steps.csv", files)]
-
-clemson_csvs = target_csvs[grep("egular", target_csvs)]
-ox_csvs = target_csvs[-grep("egular", target_csvs)]
-
-processed_stepcount_clemson =
-  map(.x = clemson_csvs,
-      .f = process_sc_results_resampled) %>%
-  bind_rows()
-
-processed_stepcount_ox =
-  map(.x = ox_csvs,
-      .f = process_sc_results_resampled) %>%
-  bind_rows()
-
-write_csv(processed_stepcount_clemson, here::here("results","stepcount", "processed", "steps_sc_clemson_resampled.csv"))
-write_csv(processed_stepcount_ox, here::here("results","stepcount", "processed", "steps_sc_ox_resampled.csv"))
+map(ox_csvs, function(file) {
+  df = readr::read_csv(file) %>%
+    rename(steps_sc = Steps)
+  id = sub(".*oxwalk\\-(.+)-r.*", "\\1", file)
+  if (!file.exists(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))) {
+    dir.create(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))
+  }
+  fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
+  fname = paste0(fname_root, "-steps_stepcount.csv")
+  readr::write_csv(df,
+                   here::here("data", "reorganized", "oxwalk", id, "step_estimates",
+                              fname))
+})
 
 
 
-
+map(marea_csvs, function(file) {
+  df = readr::read_csv(file) %>%
+    rename(steps_sc = Steps)
+  id = regmatches(file, gregexpr("(?<=a\\-)[a-zA-Z0-9]{3}", file, perl = TRUE))[[1]][1]
+  if (!file.exists(here::here("data", "reorganized", "marea", id, "step_estimates"))) {
+    dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"))
+  }
+  fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
+  fname = paste0(fname_root, "-steps_stepcount.csv")
+  readr::write_csv(df,
+                   here::here("data", "reorganized", "marea", id, "step_estimates",
+                              fname))
+})
