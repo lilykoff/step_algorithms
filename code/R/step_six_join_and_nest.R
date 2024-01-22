@@ -161,7 +161,7 @@ rm(all_ox)
 all_marea_files =  list.files(here::here("data", "reorganized", "marea"), full.names = TRUE,
                              recursive = TRUE)
 ids = substr(sub(".*marea\\/(.+)\\/.*", "\\1", all_marea_files), 1, 3) %>% unique()
-
+# find ./ -name "*indoor_run*" | xargs rm -r
 all_marea =
   map(.x = ids,
       .f = function(id){
@@ -181,7 +181,7 @@ all_marea =
                 readr::read_csv(raw_file)  %>%
                 mutate(time = floor_date(tm_dttm, unit = "seconds")) %>%
                 tidyr::nest(raw_data = c(tm_dttm, X, Y, Z, ind_step, cat_step_type)) %>%
-                select(-c(sample_rate, cat_activity_large))
+                select(-c(sample_rate))
 
               resampled_df =
                 readr::read_csv(resamp_file) %>%
@@ -190,7 +190,7 @@ all_marea =
                 select(-c(sample_rate))
 
               both =
-                full_join(raw_df, resampled_df, by = c("time", "id_subject", "id_study", "cat_activity"))
+                full_join(raw_df, resampled_df, by = c("time", "id_subject", "id_study", "cat_activity", "cat_activity_large"))
 
               step_files = sa_files[grepl("steps", sa_files)]
               step_files_raw = step_files[grepl("raw", step_files)]
@@ -265,9 +265,9 @@ marea = readRDS(here::here("data/processed/marea_nested_all.rds")) %>%
 readr::write_csv(marea, here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz"))
 marea10 = marea %>%
   mutate(time_10 = floor_date(time, unit = "10 seconds")) %>%
-  group_by(time_10, id_subject, cat_activity) %>%
+  group_by(time_10, id_subject, cat_activity, cat_activity_large, slope, speed) %>%
   mutate(n_seconds = n()) %>%
-  group_by(id_subject, cat_activity, time_10, n_seconds) %>%
+  group_by(id_subject, cat_activity, cat_activity_large, slope, speed, time_10, n_seconds) %>%
   summarize(across(starts_with("steps"), ~sum(.x, na.rm = TRUE)))
 
 readr::write_csv(marea10, here::here("results/all_algorithms/marea_step_estimates_10sec.csv.gz"))

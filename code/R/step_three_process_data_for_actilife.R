@@ -9,6 +9,7 @@ clemson_files = list.files(here::here("data", "reorganized", "clemson"), full.na
 
 ox_files = list.files(here::here("data", "reorganized", "oxwalk"), full.names = TRUE,
                       recursive = TRUE)
+# ox_files = ox_files[!grepl("steps", ox_files)]
 marea_files =  list.files(here::here("data", "reorganized", "marea"), full.names = TRUE,
                           recursive = TRUE)
 

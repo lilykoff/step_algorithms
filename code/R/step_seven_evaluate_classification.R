@@ -11,19 +11,121 @@ library(tidyverse)
 #            "#0F6B99FF", "#51A3CCFF",
 #            "#260F99FF", "#6551CCFF")
 
-# load all results data
+# load all results data - one second
 
-clemson = readr::read_csv(here::here("results/clemson_steps_1sec.csv")) %>%
-  select(-"steps_truth_30")
-ox = readr::read_csv(here::here("results/ox_steps_1sec.csv")) %>%
-  select(-"steps_truth_30")
+clemson = readr::read_csv(here::here("results/all_algorithms/clemson_step_estimates_1sec.csv.gz"))
+# for accuracy, we can't use stepcount
+clemson = clemson %>%
+  select(-contains("sc"))
 
-ox10 = readr::read_csv(here::here("results/ox_steps_10sec.csv")) %>%
-  select(-"steps_truth_30")
+# check to make sure NAs are just happening at end
+clemson %>%
+  group_by(id_subject, cat_activity) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
+  filter(position != 1)
+
+# now get rid of last row
+clemson = clemson %>%
+  group_by(id_subject, cat_activity) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(position != 1) %>%
+  ungroup() %>%
+  select(-position)
+
+oxwalk = readr::read_csv(here::here("results/all_algorithms/oxwalk_step_estimates_1sec.csv.gz"))
+# for accuracy, we can't use stepcount
+# for now just use 100 hz
+oxwalk = oxwalk %>%
+  select(-contains("sc")) %>%
+  filter(sample_rate == 100)
+
+# check to make sure NAs are just happening at end
+oxwalk %>%
+  group_by(id_subject) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
+  filter(position != 1)
+
+# now get rid of last row
+oxwalk = oxwalk %>%
+  group_by(id_subject) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(position != 1) %>%
+  ungroup() %>%
+  select(-position)
+
+marea = readr::read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz"))
+# for accuracy, we can't use stepcount
+marea = marea %>%
+  select(-contains("sc"))
+
+# check to make sure NAs are just happening at end
+marea %>%
+  group_by(id_subject, cat_activity) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
+  select(time, steps_truth, steps_oak, steps_oak_30, steps_acti_30, position) %>%
+  filter(position != 1)
+
+# now get rid of last row
+marea = marea %>%
+  group_by(id_subject, cat_activity) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(position != 1 & position != 2) %>%
+  ungroup() %>%
+  select(-position)
+
+# generate a table 1 with study descriptions
+marea %>%
+  group_by(cat_activity_large) %>%
+  summarize(subs = length(unique(id_subject)))
+
+marea %>%
+  group_by(cat_activity_large, id_subject) %>%
+  summarize(n = n()/60) %>%
+  group_by(cat_activity_large) %>%
+  summarize(across(n, list(mean = ~ mean(.x),
+                           sd = ~ sd(.x))))
+marea %>%
+  group_by(cat_activity_large, id_subject) %>%
+  summarize(n = sum(steps_truth)) %>%
+  group_by(cat_activity_large) %>%
+  summarize(across(n, list(mean = ~ mean(.x),
+                           sd = ~ sd(.x))))
+
+clemson %>%
+  group_by(cat_activity, id_subject) %>%
+  summarize(n = n()/60) %>%
+  group_by(cat_activity) %>%
+  summarize(across(n, list(mean = ~ mean(.x),
+                           sd = ~ sd(.x))))
 
 
-marea10 = readr::read_csv(here::here("results/marea_steps_1sec.csv")) %>%
-  filter(grepl("run", cat_activity) == FALSE & cat_activity != "treadmill_slopewalk")
+clemson %>%
+  group_by(cat_activity, id_subject) %>%
+  summarize(n = sum(steps_truth)) %>%
+  group_by(cat_activity) %>%
+  summarize(across(n, list(mean = ~ mean(.x),
+                           sd = ~ sd(.x))))
+oxwalk %>%
+  group_by( id_subject) %>%
+  summarize(n = n()/60) %>%
+  ungroup() %>%
+  summarize(across(n, list(mean = ~ mean(.x),
+                           sd = ~ sd(.x))))
+oxwalk %>%
+  group_by(id_subject) %>%
+  summarize(n = sum(steps_truth)) %>%
+  ungroup() %>%
+  summarize(across(n, list(mean = ~ mean(.x),
+                           sd = ~ sd(.x))))
 
 
 
@@ -31,34 +133,29 @@ paletteer::paletteer_d("ggthemes::Hue_Circle")
 col1 = "#1BA3C6FF"; col2 = "#F06719FF"; col3 = "#33A65CFF"
 col4  = "#A26DC2FF"; col5 = "#FC719EFF"; col6 = "#F8B620FF"
 
-# for primary analysis, just use clemson at 10 sec level, 30hz
-# ox at 10 sec level, 100 hz original, resampled to 30 hz
 
 clemson = clemson %>%
   select(time, id_study, id_subject, cat_activity, ends_with("30"),
          steps_truth) %>%
   mutate(cat_activity = factor(cat_activity, levels = c("walk_regular", "walk_semiregular", "walk_irregular")))
 
-ox = ox %>%
-  filter(sample_rate == 100) %>%
+oxwalk = oxwalk %>%
   select(time, id_study, id_subject,  ends_with("30"),
          steps_truth)
 
-marea10 = marea10 %>%
+marea = marea %>%
   select(time, id_study, id_subject,  ends_with("30"),
-         steps_truth, cat_activity)
+         steps_truth, cat_activity) # and get rid of running
+marea = marea %>%
+  filter(grepl("run", cat_activity)==FALSE)
 
 # full latex table, way # 1 (averaging across individuals), w all 4 scenarios
-ox %>%
+oxwalk %>%
   mutate(cat_activity = "Oxwalk") %>%
-  bind_rows(marea10 %>% mutate(cat_activity = "MAREA", id_subject = as.character(id_subject))) %>%
+  bind_rows(marea %>% mutate(cat_activity = "MAREA")) %>%
   bind_rows(clemson) %>%
   mutate(cat_activity = factor(cat_activity, levels = c("MAREA", "Oxwalk", "walk_regular",
                                                         "walk_semiregular", "walk_irregular"))) %>%
-  mutate(across(starts_with("steps"),
-                ~ifelse(is.na(.x), 0, .x))) %>%
-  mutate(across(starts_with("steps"),
-                ~ifelse(.x > 0, 1, 0))) %>%
   mutate(across(starts_with("steps") & !contains("truth"),
                 list(type = ~ case_when(
                   (.x > 0 & steps_truth > 0) ~ "tp",
@@ -94,14 +191,14 @@ ox %>%
   kableExtra::add_header_above(c(" " = 1, "Accuracy" = 5, "Recall" = 5, "Precision" = 5, "F1" = 5)) %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
-
-# latex table, separated by study type, with mean and SD
-ox %>%
+# without accuracy; current table 2 current!
+oxwalk %>%
+  mutate(cat_activity = "ox") %>%
   bind_rows(clemson) %>%
-  mutate(across(starts_with("steps"),
-                ~ifelse(is.na(.x), 0, .x))) %>%
-  mutate(across(starts_with("steps"),
-                ~ifelse(.x > 0, 1, 0))) %>%
+  bind_rows(marea %>% mutate(cat_activity = "marea")) %>%
+  mutate(cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
   mutate(across(starts_with("steps") & !contains("truth"),
                 list(type = ~ case_when(
                   (.x > 0 & steps_truth > 0) ~ "tp",
@@ -109,7 +206,7 @@ ox %>%
                   (.x == 0 & steps_truth == 0) ~ "tn",
                   (.x == 0 & steps_truth > 0) ~ "fn"
                 )))) %>%
-  group_by(id_study, id_subject) %>%
+  group_by(id_subject, cat_activity) %>%
   summarize(across(ends_with("type"),
                    list(tp = ~sum(.x == "tp"),
                         tn = ~sum(.x == "tn"),
@@ -118,44 +215,48 @@ ox %>%
   pivot_longer(cols  = starts_with("steps"))  %>%
   mutate(metric = sub(".*type\\_", "", name),
          algorithm = sub("\\_type\\_.*", "", name))  %>%
- pivot_wider(names_from = metric, values_from = value,
-            id_cols = c(id_subject, id_study, algorithm)) %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, algorithm, cat_activity)) %>%
   ungroup() %>%
   rowwise() %>%
-  mutate(acc = (tp + tn)/(tp + tn + fp + fn),
-         recall = tp /(tp + fn),
+  mutate(recall = tp /(tp + fn),
          prec = tp / (tp + fp),
          f1 = tp/(tp + (0.5*(fp + fn))))  %>%
   ungroup() %>%
-  group_by(algorithm, id_study) %>%
-  summarize(across(c(acc, recall, prec, f1),
+  group_by(algorithm, cat_activity) %>%
+  summarize(across(c(recall, prec, f1),
                    list(mean = ~mean(.x, na.rm = TRUE),
                         sd = ~ sd(.x, na.rm = TRUE)))) %>%
-  mutate(acc = paste0(round(acc_mean, 2), " (", round(acc_sd, 2), ")"),
-         recall = paste0(round(recall_mean, 2), " (", round(recall_sd, 2), ")"),
-         precision = paste0(round(prec_mean, 2), " (", round(prec_sd, 2), ")"),
-         f1 = paste0(round(f1_mean, 2), " (", round(f1_sd, 2), ")")) %>%
-  select(algorithm, id_study, acc, recall, precision, f1) %>%
-  pivot_wider(names_from = id_study, values_from = acc:f1) %>%
+  mutate(recall = paste0(round(recall_mean, 3), " (", round(recall_sd, 3), ")"),
+         precision = paste0(round(prec_mean, 3), " (", round(prec_sd, 3), ")"),
+         f1 = paste0(round(f1_mean, 3), " (", round(f1_sd, 3), ")")) %>%
+  select(algorithm, cat_activity, recall, precision, f1) %>%
+  pivot_wider(names_from = cat_activity, values_from = recall:f1) %>%
   ungroup() %>%
   mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")) %>%
   arrange(algorithm) %>%
-  kableExtra::kable(align = "llll",booktabs = TRUE, col.names =
-                      c("Algorithm", rep(c("Clemson", "Oxwalk"), 4))) %>%
-  kableExtra::add_header_above(c(" " = 1, "Accuracy" = 2, "Recall" = 2,
-                                 "Precision" = 2, "F1 Score" = 2)) %>%
+  kableExtra::kable(align = "llll", booktabs = TRUE, format = "latex", col.names =
+                      c("Algorithm", rep(c("Regular", "Semiregular", "Irregular", "Regular", "Free-Living"), 3))) %>%
+  kableExtra::add_header_above(c(" " = 1, "Clemson" = 3,
+                                 "MAREA" = 1, "OxWalk" = 1, "Clemson" = 3,
+                                 "MAREA" = 1, "OxWalk" = 1, "Clemson" = 3,
+                                 "MAREA" = 1, "OxWalk" = 1)) %>%
+  kableExtra::add_header_above(c(" " = 1, "Recall" = 5,
+                                 "Precision" = 5, "F1 Score" = 5)) %>%
   kableExtra::kable_styling(latex_options = "scale_down")
+# check if there are any true negatives in MAREA
+marea %>%
+  mutate(walk = ifelse(steps_truth > 0, 1, 0)) %>%
+  filter(walk == 0)
 
-# latex table, separated by study type, with mean and SD - means by trial type
-# currently what I have in paper
-ox %>%
+# current current n(%) table
+oxwalk %>%
   mutate(cat_activity = "oxwalk") %>%
   bind_rows(clemson) %>%
-  mutate(across(starts_with("steps"),
-                ~ifelse(is.na(.x), 0, .x))) %>%
-  mutate(across(starts_with("steps"),
-                ~ifelse(.x > 0, 1, 0))) %>%
-  mutate(across(starts_with("steps") & !contains("truth"),
+  bind_rows(marea %>% mutate(cat_activity = "marea")) %>%
+  mutate(cat_activity = factor(cat_activity, levels = c("walk_regular", "walk_semiregular", "walk_irregular",
+                                                        "marea", "oxwalk"))) %>%
+   mutate(across(starts_with("steps") & !contains("truth") & ends_with("30"),
                 list(type = ~ case_when(
                   (.x > 0 & steps_truth > 0) ~ "tp",
                   (.x > 0 & steps_truth == 0) ~ "fp",
@@ -180,6 +281,220 @@ ox %>%
          prec = tp / (tp + fp),
          f1 = tp/(tp + (0.5*(fp + fn))))  %>%
   ungroup() %>%
+  group_by(algorithm, id_study, cat_activity) %>%
+  summarize(across(f1,
+                   list(n = ~sum(.x > 0.75),
+                        pct = ~sum(.x > 0.75)/n()))) %>%
+  mutate(f1 = paste0(f1_n, " (", round(f1_pct*100, 1), ")")) %>%
+  ungroup() %>%
+  select(algorithm, cat_activity, f1) %>%
+  pivot_wider(names_from = cat_activity, values_from = f1) %>%
+  ungroup() %>%
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")) %>%
+  arrange(algorithm) %>%
+  kableExtra::kable(align = "llll", booktabs = TRUE, format = "latex", col.names =
+                      c("Algorithm", rep(c("Regular", "Semiregular", "Irregular", "Regular", "Free-Living")))) %>%
+  kableExtra::add_header_above(c(" " = 1, "Clemson" = 3,
+                                 "MAREA" = 1, "Oxwalk" = 1)) %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+
+# latex table, separated by study type, with mean and SD - currently in paper (TABLE 1)
+oxwalk %>%
+  mutate(cat_activity = "ox") %>%
+  bind_rows(clemson) %>%
+  bind_rows(marea) %>%
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_study, id_subject, cat_activity) %>%
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+ pivot_wider(names_from = metric, values_from = value,
+            id_cols = c(id_subject, id_study, algorithm, cat_activity)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(acc = (tp + tn)/(tp + tn + fp + fn),
+         recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup() %>%
+  group_by(algorithm, id_study) %>%
+  summarize(across(c(acc, recall, prec, f1),
+                   list(mean = ~mean(.x, na.rm = TRUE),
+                        sd = ~ sd(.x, na.rm = TRUE)))) %>%
+  mutate(acc = paste0(round(acc_mean, 2), " (", round(acc_sd, 2), ")"),
+         recall = paste0(round(recall_mean, 2), " (", round(recall_sd, 2), ")"),
+         precision = paste0(round(prec_mean, 2), " (", round(prec_sd, 2), ")"),
+         f1 = paste0(round(f1_mean, 2), " (", round(f1_sd, 2), ")")) %>%
+  select(algorithm, id_study, acc, recall, precision, f1) %>%
+  pivot_wider(names_from = id_study, values_from = acc:f1) %>%
+  ungroup() %>%
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")) %>%
+  arrange(algorithm) %>%
+  kableExtra::kable(align = "llll",format = "latex", booktabs = TRUE, col.names =
+                      c("Algorithm", rep(c("Clemson", "MAREA", "Oxwalk"), 4))) %>%
+  kableExtra::add_header_above(c(" " = 1, "Accuracy" = 3, "Recall" = 3,
+                                 "Precision" = 3, "F1 Score" = 3)) %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# latex table, separated by trial type (TABLE 2)
+clemson %>%
+  bind_rows(marea) %>%
+  mutate(cat_activity = factor(cat_activity, levels = c("walk_regular", "walk_semiregular", "walk_irregular",
+                                                        "outdoor_walk","indoor_walk", "treadmill_slopewalk", "treadmill_walk"))) %>%
+  mutate(cat_activity2 = case_when(
+    cat_activity %in% c("outdoor_walk","indoor_walk") ~ "Self-paced_walk",
+    cat_activity %in% c("treadmill_slopewalk", "treadmill_walk") ~ "Treadmill_walk",
+    TRUE ~ cat_activity
+  )) %>%
+  mutate(cat_activity2 = factor(cat_activity2, levels = c("walk_regular", "walk_semiregular", "walk_irregular",
+                                                          "Self-paced_walk", "Treadmill_walk"))) %>%
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_study, id_subject, cat_activity, cat_activity2) %>%
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, id_study, algorithm, cat_activity, cat_activity2)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(acc = (tp + tn)/(tp + tn + fp + fn),
+         recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup() %>%
+  group_by(algorithm, id_study, cat_activity2) %>%
+  summarize(across(c(acc, recall, prec, f1),
+                   list(mean = ~mean(.x, na.rm = TRUE),
+                        sd = ~ sd(.x, na.rm = TRUE)))) %>%
+  mutate(acc = paste0(round(acc_mean, 2), " (", round(acc_sd, 2), ")"),
+         f1 = paste0(round(f1_mean, 2), " (", round(f1_sd, 2), ")")) %>%
+  select(algorithm, id_study, cat_activity2, acc,f1) %>%
+  pivot_wider(names_from = c(id_study, cat_activity2), values_from = acc:f1) %>%
+  ungroup() %>%
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")) %>%
+  arrange(algorithm) %>%
+  kableExtra::kable(align = "llll", booktabs = TRUE, format = "latex", col.names =
+                      c("Algorithm", rep(c("Regular", "Semiregular", "Irregular", "Self-paced",
+                                           "Treadmill"), 2))) %>%
+  kableExtra::add_header_above(c(" " = 1, "Clemson" = 3, "MAREA" = 2,
+                                 "Clemson" = 3, "MAREA" = 2)) %>%
+  kableExtra::add_header_above(c(" " = 1, "Accuracy" = 5,
+                                  "F1 Score" = 5)) %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+
+## table 3: n(%) table
+oxwalk %>%
+  mutate(cat_activity = "oxwalk") %>%
+  bind_rows(clemson) %>%
+  bind_rows(marea) %>%
+  mutate(cat_activity = factor(cat_activity, levels = c("walk_regular", "walk_semiregular", "walk_irregular",
+                                                        "outdoor_walk","indoor_walk", "treadmill_slopewalk", "treadmill_walk", "oxwalk"))) %>%
+  mutate(cat_activity2 = case_when(
+    cat_activity %in% c("outdoor_walk","indoor_walk") ~ "Self-paced_walk",
+    cat_activity %in% c("treadmill_slopewalk", "treadmill_walk") ~ "Treadmill_walk",
+    TRUE ~ cat_activity
+  )) %>%
+  mutate(cat_activity2 = factor(cat_activity2, levels = c("walk_regular", "walk_semiregular", "walk_irregular",
+                                                          "Self-paced_walk", "Treadmill_walk", "oxwalk"))) %>%
+  mutate(across(starts_with("steps") & !contains("truth") & ends_with("30"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_study, id_subject, cat_activity2) %>%
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, id_study, algorithm, cat_activity2)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(acc = (tp + tn)/(tp + tn + fp + fn),
+         recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup() %>%
+  group_by(algorithm, id_study, cat_activity2) %>%
+  summarize(across(f1,
+                   list(n = ~sum(.x > 0.75),
+                        pct = ~sum(.x > 0.75)/n()))) %>%
+  mutate(f1 = paste0(f1_n, " (", round(f1_pct*100, 1), ")")) %>%
+  ungroup() %>%
+  select(algorithm, cat_activity2, f1) %>%
+  pivot_wider(names_from = cat_activity2, values_from = f1) %>%
+  ungroup()  %>%
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")) %>%
+  arrange(algorithm) %>%
+  kableExtra::kable(align = "llll", booktabs = TRUE, format = "latex", col.names =
+                      c("Algorithm", rep(c("Regular", "Semiregular", "Irregular", "Self-paced",
+                                           "Treadmill", "Oxwalk")))) %>%
+  kableExtra::add_header_above(c(" " = 1, "Clemson" = 3,
+                                 "MAREA" = 2, "Oxwalk" = 1)) %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+
+  # latex table, separated by study type, with mean and SD - means by trial type
+
+oxwalk %>%
+  mutate(cat_activity = "ox") %>%
+  bind_rows(clemson) %>%
+  bind_rows(marea) %>%
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_study, id_subject) %>%
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, id_study, algorithm)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(acc = (tp + tn)/(tp + tn + fp + fn),
+         recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup() %>%
   group_by(algorithm, id_study) %>%
   summarize(across(c(acc, recall, prec, f1),
                    list(mean = ~mean(.x, na.rm = TRUE),
@@ -194,11 +509,14 @@ ox %>%
   mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")) %>%
   arrange(algorithm) %>%
   kableExtra::kable(align = "llll",booktabs = TRUE, col.names =
-                      c("Algorithm", rep(c("Clemson", "Oxwalk"), 4))) %>%
-  kableExtra::add_header_above(c(" " = 1, "Accuracy" = 2, "Recall" = 2,
-                                 "Precision" = 2, "F1 Score" = 2)) %>%
+                      c("Algorithm", rep(c("Clemson", "MAREA", "Oxwalk"), 4))) %>%
+  kableExtra::add_header_above(c(" " = 1, "Accuracy" = 3, "Recall" = 3,
+                                 "Precision" = 3, "F1 Score" = 3)) %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
+
+
+## old
 # n (%) with F1 > 0.75
 ox %>%
   mutate(cat_activity = "oxwalk") %>%

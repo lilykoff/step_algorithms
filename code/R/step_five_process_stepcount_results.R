@@ -38,6 +38,9 @@ map(ox_csvs, function(file) {
 })
 
 
+# fix b/c of resampling fix
+# marea_csvs = files[grepl("\\-Steps.csv", files) == TRUE & grepl("marea", files) == TRUE
+#                    & grepl("raw", files)==TRUE & grepl("separated", files) == FALSE]
 
 map(marea_csvs, function(file) {
   df = readr::read_csv(file) %>%

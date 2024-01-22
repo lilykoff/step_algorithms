@@ -142,14 +142,22 @@ gait_events_small =
 marea_dat_labeled_steps =
   marea_dat_labeled %>%
   mutate(activity_large = case_when(
-    activity == "treadmill_walk" | activity == "treadmill_run" ~ "treadmill_walkrun",
-    activity == "indoor_walk" | activity == "indoor_run" ~ "indoor_walkrun",
-    activity == "outdoor_walk"| activity == "outdoor_run" ~ "outdoor_walkrun",
+    (activity == "treadmill_walk" | activity == "treadmill_run") ~ "treadmill_walkrun",
+    (activity == "indoor_walk" | activity == "indoor_run") ~ "indoor_walkrun",
+    (activity == "outdoor_walk"| activity == "outdoor_run") ~ "outdoor_walkrun",
     TRUE ~ activity)) %>%
   group_by(id_subject, activity_large) %>%
   mutate(activity_index = row_number()) %>%
   left_join(gait_events_small, by = c("id_subject", "activity_index", "activity_large"))
 
+
+# marea_dat_labeled_steps %>%
+#   filter(id_subject == 1 & activity == "indoor_walk") %>%
+#   slice(1:1000) %>%
+#   mutate(step = ifelse(is.na(type), 0, 1)) %>%
+#   ggplot(aes(x = index, y = sqrt(X^2  +Y^2 + Z^2)))+
+#   geom_line()+
+#   geom_point(aes(x = index, y = step, col = as.factor(type)))
 
 start_time = lubridate::floor_date(as.POSIXct("2023-10-23 10:00:00", tz = "UTC"), unit = "seconds")
 # finally, add fake timestamps
@@ -158,16 +166,45 @@ start_time = lubridate::floor_date(as.POSIXct("2023-10-23 10:00:00", tz = "UTC")
 marea_dat_labeled_steps =
   marea_dat_labeled_steps %>%
   mutate(time_s = (activity_index-1) / 128,
+         time_min = floor(time_s / 60),
          tm_dttm = start_time + as.period(time_s, unit = "seconds"))
+
+
+
+## add in speeds and inclines
+
+marea_dat_labeled_steps =
+  marea_dat_labeled_steps %>%
+  mutate(speed = case_when(
+    activity_large == "treadmill_walkrun" & time_min == 0 ~ "4.0 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 1 ~ "4.4 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 2 ~ "4.8 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 3 ~ "5.2 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 4 ~ "5.6 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 5 ~ "6.0 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 6 ~ "6.4 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 7 ~ "6.8 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 8 ~ "7.2 km/hr",
+    activity_large == "treadmill_walkrun" & time_min == 9 ~ "7.6 km/hr",
+    activity_large == "treadmill_walkrun" & time_min >= 10 ~ "8.0 km/hr",
+    TRUE ~ "self_selected"),
+    slope = case_when(
+      activity_large == "treadmill_slopewalk" & time_min %in% c(0,1) ~ "5 deg",
+      activity_large == "treadmill_slopewalk" & time_min %in% c(4,5) ~ "10 deg",
+      activity_large == "treadmill_slopewalk" & time_min %in% c(8,9) ~ "15 deg",
+      TRUE ~ "0 deg"
+    ))
 
 final_dat =
   marea_dat_labeled_steps %>%
+  filter(!is.na(activity)) %>%
   rename(cat_activity = activity,
          cat_activity_large = activity_large,
          num_row_subject = index,
          num_row_subject_activity = activity_index,
          cat_step_type = type,
-         tm_time_s = time_s) %>%
+         tm_time_s = time_s,
+         tm_time_min = time_min) %>%
   mutate(sample_rate = 128,
          ind_step = ifelse(is.na(cat_step_type), 0, 1),
          id_study = "marea") %>%
@@ -175,6 +212,9 @@ final_dat =
   mutate(id_subject = sprintf("P%02.f", id_subject)) %>%
   select(-c(num_row_subject, num_row_subject_activity, tm_time_s))
 
+final_dat %>%
+  group_by(cat_activity_large, id_subject) %>%
+  summarize(n = n ()/(128*60))
 
 # do some basic EDA
 # final_dat %>%
@@ -192,12 +232,12 @@ write_csv(final_dat, here::here("data/processed/marea.csv.gz"))
 
 marea_list = split(final_dat,
                    f = list(final_dat$id_subject,
-                            final_dat$cat_activity)) %>%
+                            final_dat$cat_activity_large)) %>%
   vctrs::list_drop_empty()
 
 lapply(marea_list, function(item){
   id_new = item$id_subject[1]
-  activity =  item$cat_activity[1]
+  activity =  item$cat_activity_large[1]
   fname = paste0("marea-", id_new, "-", activity,
                  "-", "raw128Hz.csv.gz")
   if(!file.exists(here::here("data", "reorganized", "marea", id_new))){
