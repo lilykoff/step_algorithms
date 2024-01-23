@@ -1,3 +1,4 @@
+# devtools::install_github("https://github.com/muschellij2/walking")
 
 # set adept templates
 all_wrist_templates = adeptdata::stride_template$left_wrist
@@ -108,6 +109,7 @@ fit_vs = function(data, sample_rate){
   }
   vs_res = estimate_steps_verisense(data,
                            method = "revised",
+                           resample_to_15hz = FALSE,
                            sample_rate = sample_rate) %>%
     rename(steps_vs = steps)
   message("vs completed")

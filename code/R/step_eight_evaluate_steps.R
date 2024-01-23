@@ -147,8 +147,84 @@ oxwalk10 %>%
                                  "Bias" = 5, "RCA" = 5)) %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
+# figures
+step_df = oxwalk10 %>%
+  mutate(id_study = "oxwalk",
+         cat_activity = "ox") %>%
+  bind_rows(clemson10 %>% mutate(id_study = "clemson")) %>%
+  bind_rows(marea10 %>% mutate(cat_activity = "marea",
+                               id_study = "marea")) %>%
+  mutate(id_study = factor(id_study, levels = c("clemson", "marea", "oxwalk")),
+         cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
+  group_by(id_subject, cat_activity) %>%
+  summarize(across(starts_with("steps"),
+                   ~sum(.x, na.rm = TRUE))) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(ape = ~ abs((steps_truth - .x)/steps_truth),
+                     bias = ~ .x - steps_truth,
+                     rca = ~ .x / steps_truth))) %>%
+  select(id_subject, cat_activity, contains("bias"), contains("ape"), contains("rca")) %>%
+  pivot_longer(cols  = starts_with("steps")) %>%
+  mutate(metric = sub(".*30\\_", "", name),
+         algorithm = sub(".*steps_(.+)\\_30.*", "\\1", name))  %>%
+  select(-name)
 
-# n (%) tables
+step_mean = oxwalk10 %>%
+  mutate(id_study = "oxwalk",
+         cat_activity = "ox") %>%
+  bind_rows(clemson10 %>% mutate(id_study = "clemson")) %>%
+  bind_rows(marea10 %>% mutate(cat_activity = "marea",
+                               id_study = "marea")) %>%
+  mutate(id_study = factor(id_study, levels = c("clemson", "marea", "oxwalk")),
+         cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
+  group_by(id_subject, cat_activity) %>%
+  summarize(across(starts_with("steps"),
+                   ~sum(.x, na.rm = TRUE))) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(ape = ~ abs((steps_truth - .x)/steps_truth),
+                     bias = ~ .x - steps_truth,
+                     rca = ~ .x / steps_truth))) %>%
+  select(id_subject, cat_activity, contains("bias"), contains("ape"), contains("rca")) %>%
+  pivot_longer(cols  = starts_with("steps")) %>%
+  mutate(metric = sub(".*30\\_", "", name),
+         algorithm = sub(".*steps_(.+)\\_30.*", "\\1", name))  %>%
+  select(-name) %>%
+  group_by(cat_activity, metric, algorithm) %>%
+  summarize(mean = mean(value))
+
+
+step_df %>%
+  mutate(value = ifelse(metric == "ape", value * 100, value)) %>%
+  ggplot(aes(x = algorithm, y = value, col = algorithm))+
+  geom_boxplot(outlier.shape = NA, position = position_dodge())+
+  geom_jitter(width=.1, alpha=.2)+
+  facet_grid(metric ~ cat_activity, scales = "free_y",
+             labeller = labeller(name = labs,
+                                 cat_activity = labs2))+
+  scale_color_brewer(palette = "Dark2")+
+  theme_bw()+
+  theme(legend.position = "none")+
+  labs(x = "", y = "Value", title = "Boxplots, with points and means labeled")+
+  scale_x_discrete(labels = c("ActiLife", "ADEPT", "Oak", "Stepcount",  "SDT", "Verisense")) +
+  geom_text(data = step_mean %>%
+              mutate(mean = ifelse(metric == "ape", mean * 100, mean)),
+            aes(x = algorithm, y = mean, label = round(mean, 2)), col = "black",size = 3)+
+  ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test", paired = TRUE,
+                             label= "p.format")
+my_comparisons = list(c("acti", "adept"), c("acti", "oak"),c("acti", "sdt"), c("acti", "vs"), c("acti", "sc"),
+                      c("adept", "oak"),c("adept", "sdt"), c("adept", "vs"), c("adept", "sc"),
+                      c("oak", "sdt"), c("oak", "vs"), c("oak", "sc"),
+                      c("vs", "sdt"), c("vs", "sc"),
+                      c("sdt", "sc"))
+# n (%) tables,
 
 oxwalk10 %>%
   mutate(cat_activity = "oxwalk", id_study = "oxwalk") %>%

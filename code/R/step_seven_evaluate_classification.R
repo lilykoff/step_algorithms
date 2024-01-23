@@ -149,7 +149,301 @@ marea = marea %>%
 marea = marea %>%
   filter(grepl("run", cat_activity)==FALSE)
 
-# full latex table, way # 1 (averaging across individuals), w all 4 scenarios
+# walking recognition table
+
+# bind all datasets together
+oxwalk %>%
+  mutate(cat_activity = "ox") %>%
+  bind_rows(clemson) %>%
+  bind_rows(marea %>% mutate(cat_activity = "marea")) %>%
+  mutate(cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
+  # classify each second as true positive/neg or false positive/neg
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_subject, cat_activity) %>%
+  # summarize tp, fp, tn, fn by id and activity
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, algorithm, cat_activity)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup() %>%
+  # get means
+  group_by(algorithm, cat_activity) %>%
+  summarize(across(c(recall, prec, f1),
+                   list(mean = ~mean(.x, na.rm = TRUE),
+                        sd = ~ sd(.x, na.rm = TRUE)))) %>%
+  # formatting
+  mutate(recall = paste0(round(recall_mean, 3), " (", round(recall_sd, 3), ")"),
+         precision = paste0(round(prec_mean, 3), " (", round(prec_sd, 3), ")"),
+         f1 = paste0(round(f1_mean, 3), " (", round(f1_sd, 3), ")")) %>%
+  select(algorithm, cat_activity, recall, precision, f1) %>%
+  pivot_wider(names_from = cat_activity, values_from = recall:f1) %>%
+  ungroup() %>%
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")) %>%
+  arrange(algorithm) %>%
+  kableExtra::kable(align = "llll", booktabs = TRUE, format = "latex", col.names =
+                      c("Algorithm", rep(c("Regular", "Semiregular", "Irregular", "Regular", "Free-Living"), 3))) %>%
+  kableExtra::add_header_above(c(" " = 1, "Clemson" = 3,
+                                 "MAREA" = 1, "OxWalk" = 1, "Clemson" = 3,
+                                 "MAREA" = 1, "OxWalk" = 1, "Clemson" = 3,
+                                 "MAREA" = 1, "OxWalk" = 1)) %>%
+  kableExtra::add_header_above(c(" " = 1, "Recall" = 5,
+                                 "Precision" = 5, "F1 Score" = 5)) %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# walking recognition figure
+recog_mean_sd =
+  oxwalk %>%
+  mutate(cat_activity = "ox") %>%
+  bind_rows(clemson) %>%
+  bind_rows(marea %>% mutate(cat_activity = "marea")) %>%
+  mutate(cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
+  # classify each second as true positive/neg or false positive/neg
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_subject, cat_activity) %>%
+  # summarize tp, fp, tn, fn by id and activity
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, algorithm, cat_activity)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup() %>%
+  # get means
+  group_by(algorithm, cat_activity) %>%
+  summarize(across(c(recall, prec, f1),
+                   list(mean = ~mean(.x, na.rm = TRUE),
+                        sd = ~ sd(.x, na.rm = TRUE))))
+
+recog_mean =
+  oxwalk %>%
+  mutate(cat_activity = "ox") %>%
+  bind_rows(clemson) %>%
+  bind_rows(marea %>% mutate(cat_activity = "marea")) %>%
+  mutate(cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
+  # classify each second as true positive/neg or false positive/neg
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_subject, cat_activity) %>%
+  # summarize tp, fp, tn, fn by id and activity
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, algorithm, cat_activity)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup() %>%
+  # get means
+  group_by(algorithm, cat_activity) %>%
+  summarize(across(c(recall, prec, f1),
+                   list(mean = ~mean(.x, na.rm = TRUE),
+                        sd = ~ sd(.x, na.rm = TRUE)))) %>%
+  pivot_longer(cols = ends_with("mean")) %>%
+  mutate(algorithm = sub(".*steps\\_(.+)\\_30.*", "\\1", algorithm))
+
+recog_med =
+  oxwalk %>%
+  mutate(cat_activity = "ox") %>%
+  bind_rows(clemson) %>%
+  bind_rows(marea %>% mutate(cat_activity = "marea")) %>%
+  mutate(cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
+  # classify each second as true positive/neg or false positive/neg
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_subject, cat_activity) %>%
+  # summarize tp, fp, tn, fn by id and activity
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, algorithm, cat_activity)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup() %>%
+  # get means
+  group_by(algorithm, cat_activity) %>%
+  summarize(across(c(recall, prec, f1),
+                   list(mean = ~median(.x, na.rm = TRUE),
+                        sd = ~ sd(.x, na.rm = TRUE)))) %>%
+  pivot_longer(cols = ends_with("mean")) %>%
+  mutate(algorithm = sub(".*steps\\_(.+)\\_30.*", "\\1", algorithm))
+
+# each row is subject, activity
+recog_stats =
+  oxwalk %>%
+  mutate(cat_activity = "ox") %>%
+  bind_rows(clemson) %>%
+  bind_rows(marea %>% mutate(cat_activity = "marea")) %>%
+  mutate(cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
+  # classify each second as true positive/neg or false positive/neg
+  mutate(across(starts_with("steps") & !contains("truth"),
+                list(type = ~ case_when(
+                  (.x > 0 & steps_truth > 0) ~ "tp",
+                  (.x > 0 & steps_truth == 0) ~ "fp",
+                  (.x == 0 & steps_truth == 0) ~ "tn",
+                  (.x == 0 & steps_truth > 0) ~ "fn"
+                )))) %>%
+  group_by(id_subject, cat_activity) %>%
+  # summarize tp, fp, tn, fn by id and activity
+  summarize(across(ends_with("type"),
+                   list(tp = ~sum(.x == "tp"),
+                        tn = ~sum(.x == "tn"),
+                        fp = ~sum(.x == "fp"),
+                        fn = ~sum(.x == "fn")))) %>%
+  pivot_longer(cols  = starts_with("steps"))  %>%
+  mutate(metric = sub(".*type\\_", "", name),
+         algorithm = sub("\\_type\\_.*", "", name))  %>%
+  pivot_wider(names_from = metric, values_from = value,
+              id_cols = c(id_subject, algorithm, cat_activity)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(recall = tp /(tp + fn),
+         prec = tp / (tp + fp),
+         f1 = tp/(tp + (0.5*(fp + fn))))  %>%
+  ungroup()
+
+labs = c("F1 Score", "Precision", "Recall")
+names(labs) = c("f1", "prec", "recall")
+
+# recog_stats %>%
+#   mutate(algorithm = sub(".*steps\\_(.+)\\_30.*", "\\1", algorithm)) %>%
+#   pivot_longer(cols = recall:f1) %>%
+#   ggplot(aes(x = cat_activity, y = value, col = algorithm)) +
+#   geom_boxplot(outlier.shape = NA, position = position_dodge()) +
+#   facet_wrap(. ~ name, nrow = 3,
+#              labeller = labeller(name = labs)) +
+#   scale_color_manual(
+#     values = c(
+#       "#1B9E77FF",
+#       "#D95F02FF",
+#       "#7570B3FF",
+#       "#66A61EFF",
+#       "#E6AB02FF"
+#     ),
+#     labels = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")
+#   ) +
+#   theme_bw() +
+#   theme(legend.position = "bottom") +
+#   scale_x_discrete(
+#     labels = c(
+#       "Clemson - Regular",
+#       "Clemson - Semiregular",
+#       "Clemson - Irregular",
+#       "MAREA",
+#       "Oxwalk"
+#     )
+#   ) +
+#   labs(x = "", y = "Value")
+
+
+labs2 = c("Clemson - Regular", "Clemson - Semiregular", "Clemson - Irregular", "MAREA", "Oxwalk")
+names(labs2) = c("walk_regular", "walk_semiregular", "walk_irregular", "marea", "ox")
+# current figure
+recog_stats %>%
+  mutate(algorithm = sub(".*steps\\_(.+)\\_30.*", "\\1", algorithm)) %>%
+  pivot_longer(cols = recall:f1) %>%
+  ggplot(aes(x = algorithm, y = value, col = algorithm))+
+  geom_boxplot(outlier.shape = NA, position = position_dodge())+
+  geom_jitter(width=.1, alpha=.2)+
+  facet_grid(name ~ cat_activity, scales = "free_y",
+             labeller = labeller(name = labs,
+                                 cat_activity = labs2))+
+  scale_color_manual(values = c("#1B9E77FF", "#D95F02FF", "#7570B3FF", "#66A61EFF", "#E6AB02FF"),
+                     labels = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense"))+
+  theme_bw()+
+  theme(legend.position = "none")+
+  labs(x = "", y = "Value", title = "Boxplots, with points and means labeled")+
+  scale_x_discrete(labels = c("ActiLife", "ADEPT", "Oak", "SDT", "Verisense")) +
+  geom_text(data = recog_mean %>%
+              mutate(name = sub("\\_.*", "", name)),
+            aes(x = algorithm, y = value, label = round(value, 2)), col = "black",size = 3)
+my_comparisons = list(c("acti", "adept"), c("acti", "oak"),c("acti", "sdt"), c("acti", "vs"),
+                      c("adept", "oak"),c("adept", "sdt"), c("adept", "vs"),
+                      c("oak", "sdt"), c("oak", "vs"),
+                     c("vs", "sdt"))
+
+# plt2 +
+#   ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test", paired = TRUE,
+#                              label= "p.signif")
+# plt3 +
+#   ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test", paired = TRUE,
+#                              label= "p.signif")
+
+plt3 +
+  ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test", paired = TRUE,
+                             label= "p.format")
+
+# full latex table, way # 1 (averaging across indiv)
+
+
 oxwalk %>%
   mutate(cat_activity = "Oxwalk") %>%
   bind_rows(marea %>% mutate(cat_activity = "MAREA")) %>%

@@ -246,6 +246,41 @@ oxwalk %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
 
+# report correlation instead of ICC
+oxwalk %>%
+  filter(sample_rate == 25) %>%
+  mutate(id_study = "oxwalk25", cat_activity2 = "ox") %>%
+  bind_rows(oxwalk %>% filter(sample_rate == 100) %>%
+              mutate(id_study = "oxwalk100", cat_activity2 = "ox")) %>%
+  bind_rows(marea %>% mutate(id_study = "marea", cat_activity2 = "marea")) %>%
+  bind_rows(clemson %>% mutate(id_study = "clemson", cat_activity2= cat_activity))  %>%
+  group_by(id_subject, cat_activity2, id_study) %>%
+  summarize(across(starts_with("steps"), ~sum(.x))) %>%
+  pivot_longer(cols = starts_with("steps") & !contains("truth") & !contains("acti")) %>%
+  select(id_subject, id_study, cat_activity2, name, value) %>%
+  mutate(type = ifelse(grepl("30", name), "resampled", "raw"),
+         method = ifelse(type == "resampled",
+                         sub(".*steps\\_(.+)\\_.*", "\\1", name),
+                         sub(".*\\_", "", name))) %>%
+  ungroup() %>%
+  select(-name) %>%
+  pivot_wider(names_from = type, values_from = value,
+              id_cols = c(id_subject, cat_activity2, id_study, method))  %>%
+  group_by(cat_activity2, id_study, method) %>%
+  summarize(pearson = cor(raw, resampled, method = "pearson")) %>%
+  ungroup() %>%
+  mutate(id = paste0(cat_activity2, id_study)) %>%
+  select(-cat_activity2, -id_study) %>%
+  pivot_wider(names_from = id, values_from = pearson) %>%
+  select(method, reg = walk_regularclemson, semi = walk_semiregularclemson,
+         irr = walk_irregularclemson, marea = mareamarea, ox25 = oxoxwalk25, ox100 = oxoxwalk100) %>%
+  mutate(method = c("ADEPT", "Oak", "Stepcount", "SDT", "Verisense")) %>%
+  arrange(method) %>%
+  magrittr::set_colnames(c("Algorithm", "Clemson Regular", "Clemson Semiregular", "Clemson Irregular", "MAREA",
+                           "OxWalk 25Hz", "OxWalk 100Hz")) %>%
+  kableExtra::kable(digits = 2, align = "llll",format = "latex", booktabs = TRUE) %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
 
 clemson %>%
   filter(cat_activity == "walk_irregular") %>%
