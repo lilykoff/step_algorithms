@@ -13,10 +13,13 @@ library(tidyverse)
 
 # load all results data - one second
 
+# HERE
+
+
 clemson = readr::read_csv(here::here("results/all_algorithms/clemson_step_estimates_1sec.csv.gz"))
 # for accuracy, we can't use stepcount
-clemson = clemson %>%
-  select(-contains("sc"))
+# clemson = clemson %>%
+#   select(-contains("sc"))
 
 # check to make sure NAs are just happening at end
 clemson %>%
@@ -39,7 +42,7 @@ oxwalk = readr::read_csv(here::here("results/all_algorithms/oxwalk_step_estimate
 # for accuracy, we can't use stepcount
 # for now just use 100 hz
 oxwalk = oxwalk %>%
-  select(-contains("sc")) %>%
+  # select(-contains("sc")) %>%
   filter(sample_rate == 100)
 
 # check to make sure NAs are just happening at end
@@ -61,8 +64,8 @@ oxwalk = oxwalk %>%
 
 marea = readr::read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz"))
 # for accuracy, we can't use stepcount
-marea = marea %>%
-  select(-contains("sc"))
+# marea = marea %>%
+#   select(-contains("sc"))
 
 # check to make sure NAs are just happening at end
 marea %>%

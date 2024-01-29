@@ -5,7 +5,7 @@ all_wrist_templates = adeptdata::stride_template$left_wrist
 template_list = do.call(rbind, all_wrist_templates)
 template_list = apply(template_list, 1, identity, simplify = FALSE)
 
-fit_adept = function(data, sample_rate, templates = template_list){
+fit_adept = function(data, sample_rate, templates = template_list) {
   if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
     data = data %>%
       rename(HEADER_TIME_STAMP = tm_dttm)
@@ -34,8 +34,10 @@ fit_adept = function(data, sample_rate, templates = template_list){
     data %>%
     mutate(row_ind = row_number()) %>%
     left_join(., step_result, by = c("row_ind" = "tau_i")) %>%
-    mutate(steps = ifelse(is.na(steps), 0, steps),
-           time = lubridate::floor_date(HEADER_TIME_STAMP, unit = "seconds")) %>%
+    mutate(
+      steps = ifelse(is.na(steps), 0, steps),
+      time = lubridate::floor_date(HEADER_TIME_STAMP, unit = "seconds")
+    ) %>%
     group_by(time) %>%
     summarize(steps_adept = sum(steps)) %>%
     select(time, steps_adept)
@@ -44,10 +46,15 @@ fit_adept = function(data, sample_rate, templates = template_list){
 }
 
 fit_sdt <-
-  function(data, sample_rate, order = 4, high = 0.25, low = 2.5, loc = "wrist"){
-    if(!"vm" %in% colnames(data)){
+  function(data,
+           sample_rate,
+           order = 4,
+           high = 0.25,
+           low = 2.5,
+           loc = "wrist") {
+    if (!"vm" %in% colnames(data)) {
       data = data %>%
-        mutate(vm = sqrt(X^2 + Y^2 + Z^2))
+        mutate(vm = sqrt(X ^ 2 + Y ^ 2 + Z ^ 2))
     }
     if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
       data = data %>%
@@ -89,7 +96,7 @@ fit_sdt <-
       summarize(steps_sdt = sum(peak, na.rm = TRUE))
   }
 
-fit_oak = function(data){
+fit_oak = function(data) {
   if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
     data = data %>%
       rename(HEADER_TIME_STAMP = tm_dttm)
@@ -102,21 +109,24 @@ fit_oak = function(data){
   oak_res
 }
 
-fit_vs = function(data, sample_rate){
+fit_vs = function(data, sample_rate) {
   if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
     data = data %>%
       rename(HEADER_TIME_STAMP = tm_dttm)
   }
-  vs_res = estimate_steps_verisense(data,
-                           method = "revised",
-                           resample_to_15hz = FALSE,
-                           sample_rate = sample_rate) %>%
+  vs_res = estimate_steps_verisense(
+    data,
+    method = "revised",
+    resample_to_15hz = FALSE,
+    sample_rate = sample_rate
+  ) %>%
     rename(steps_vs = steps)
   message("vs completed")
   vs_res
 }
 
-get_truth = function(data){
+# function to get ground truth step count
+get_truth = function(data) {
   if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
     data = data %>%
       rename(HEADER_TIME_STAMP = tm_dttm)
@@ -127,89 +137,88 @@ get_truth = function(data){
   truth
 }
 
-
-fit_all_algorithms = function(data) {
-  sample_rate = data$sample_rate[1]
-  id_subject = data$id_subject[1]
-  id_study = data$id_study[1]
-  cat_activity = ifelse("cat_activity" %in% colnames(data), data$cat_activity[1], NA)
-  if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
-    data = data %>%
-      rename(HEADER_TIME_STAMP = tm_dttm)
-  }
-
-  oak_res = estimate_steps_forest(data) %>%
-    rename(steps_oak = steps)
-  message("oak completed")
-  vs_res = estimate_steps_verisense(data,
-                                    method = "revised",
-                                    sample_rate = sample_rate) %>%
-    rename(steps_vs = steps)
-  message("vs completed")
-  adept_res = estimate_steps_adept(data,
-                                   sample_rate = sample_rate,
-                                   templates = template_list) %>%
-    rename(steps_adept = steps)
-  message("adept completed")
-  sdt_res = estimate_steps_sdt(data,
-                               sample_rate = sample_rate) %>%
-    rename(steps_sdt = steps)
-  message("sdt completed")
-  truth = data %>%
-    group_by(time = lubridate::floor_date(HEADER_TIME_STAMP)) %>%
-    summarize(steps_truth = sum(ind_step, na.rm = TRUE))
-  out =
-    oak_res %>%
-    full_join(vs_res) %>%
-    full_join(adept_res) %>%
-    full_join(sdt_res) %>%
-    full_join(truth) %>%
-    mutate(id_subject = id_subject,
-           id_study = id_study,
-           cat_activity = cat_activity,
-           sample_rate = sample_rate)
-  out
-}
-
-fit_all_algorithms_resampled = function(data) {
-  sample_rate = data$sample_rate[1]
-  id_subject = data$id_subject[1]
-  id_study = data$id_study[1]
-  sample_rate_old = data$sample_rate_old[1]
-  cat_activity = ifelse("cat_activity" %in% colnames(data), data$cat_activity[1], NA)
-  if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
-    data = data %>%
-      rename(HEADER_TIME_STAMP = tm_dttm)
-  }
-
-  oak_res = estimate_steps_forest(data) %>%
-    rename(steps_oak = steps)
-  message("oak completed")
-  vs_res = estimate_steps_verisense(data,
-                                    method = "revised",
-                                    sample_rate = sample_rate) %>%
-    rename(steps_vs = steps)
-  message("vs completed")
-  adept_res = estimate_steps_adept(data,
-                                   sample_rate = sample_rate,
-                                   templates = template_list) %>%
-    rename(steps_adept = steps)
-  message("adept completed")
-  sdt_res = estimate_steps_sdt(data,
-                               sample_rate = sample_rate) %>%
-    rename(steps_sdt = steps)
-  message("sdt completed")
-
-  out =
-    oak_res %>%
-    full_join(vs_res) %>%
-    full_join(adept_res) %>%
-    full_join(sdt_res) %>%
-    mutate(id_subject = id_subject,
-           id_study = id_study,
-           cat_activity = cat_activity,
-           sample_rate = sample_rate,
-           sample_rate_old = sample_rate_old)
-  out
-}
-
+# function to fit all algorithms and save results
+# fit_all_algorithms = function(data) {
+#   sample_rate = data$sample_rate[1]
+#   id_subject = data$id_subject[1]
+#   id_study = data$id_study[1]
+#   cat_activity = ifelse("cat_activity" %in% colnames(data), data$cat_activity[1], NA)
+#   if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
+#     data = data %>%
+#       rename(HEADER_TIME_STAMP = tm_dttm)
+#   }
+#
+#   oak_res = estimate_steps_forest(data) %>%
+#     rename(steps_oak = steps)
+#   message("oak completed")
+#   vs_res = estimate_steps_verisense(data,
+#                                     method = "revised",
+#                                     sample_rate = sample_rate) %>%
+#     rename(steps_vs = steps)
+#   message("vs completed")
+#   adept_res = estimate_steps_adept(data,
+#                                    sample_rate = sample_rate,
+#                                    templates = template_list) %>%
+#     rename(steps_adept = steps)
+#   message("adept completed")
+#   sdt_res = estimate_steps_sdt(data,
+#                                sample_rate = sample_rate) %>%
+#     rename(steps_sdt = steps)
+#   message("sdt completed")
+#   truth = data %>%
+#     group_by(time = lubridate::floor_date(HEADER_TIME_STAMP)) %>%
+#     summarize(steps_truth = sum(ind_step, na.rm = TRUE))
+#   out =
+#     oak_res %>%
+#     full_join(vs_res) %>%
+#     full_join(adept_res) %>%
+#     full_join(sdt_res) %>%
+#     full_join(truth) %>%
+#     mutate(id_subject = id_subject,
+#            id_study = id_study,
+#            cat_activity = cat_activity,
+#            sample_rate = sample_rate)
+#   out
+# }
+#
+# fit_all_algorithms_resampled = function(data) {
+#   sample_rate = data$sample_rate[1]
+#   id_subject = data$id_subject[1]
+#   id_study = data$id_study[1]
+#   sample_rate_old = data$sample_rate_old[1]
+#   cat_activity = ifelse("cat_activity" %in% colnames(data), data$cat_activity[1], NA)
+#   if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
+#     data = data %>%
+#       rename(HEADER_TIME_STAMP = tm_dttm)
+#   }
+#
+#   oak_res = estimate_steps_forest(data) %>%
+#     rename(steps_oak = steps)
+#   message("oak completed")
+#   vs_res = estimate_steps_verisense(data,
+#                                     method = "revised",
+#                                     sample_rate = sample_rate) %>%
+#     rename(steps_vs = steps)
+#   message("vs completed")
+#   adept_res = estimate_steps_adept(data,
+#                                    sample_rate = sample_rate,
+#                                    templates = template_list) %>%
+#     rename(steps_adept = steps)
+#   message("adept completed")
+#   sdt_res = estimate_steps_sdt(data,
+#                                sample_rate = sample_rate) %>%
+#     rename(steps_sdt = steps)
+#   message("sdt completed")
+#
+#   out =
+#     oak_res %>%
+#     full_join(vs_res) %>%
+#     full_join(adept_res) %>%
+#     full_join(sdt_res) %>%
+#     mutate(id_subject = id_subject,
+#            id_study = id_study,
+#            cat_activity = cat_activity,
+#            sample_rate = sample_rate,
+#            sample_rate_old = sample_rate_old)
+#   out
+# }

@@ -1,3 +1,6 @@
+# fits all walking algorithms and returns steps at the second level for all algorithms except for
+# stepcount (bash script) and actilife (need to use actilife software)
+
 library(walking)
 library(tidyverse)
 library(readr)
@@ -5,29 +8,29 @@ options(digits.secs = 3)
 
 source(here::here("code/R/utils.R"))
 
+# get raw/resampled files
 clemson_files = list.files(here::here("data", "reorganized",
                                       "clemson"),
                            recursive = TRUE,
-                           full.names = TRUE)
-
-oxwalk_files = list.files(here::here("data", "reorganized",
-                                                     "oxwalk"),
-                                          recursive = TRUE,
-                                          full.names = TRUE)
+                           full.names = TRUE,
+                           pattern = ".*.csv.gz")
 
 marea_files = list.files(here::here("data", "reorganized",
                                      "marea"),
                           recursive = TRUE,
-                          full.names = TRUE)
-# just get the raw files
-clemson_files = clemson_files[grepl("step_estimates", clemson_files) == FALSE]
-oxwalk_files = oxwalk_files[grepl("step_estimates", oxwalk_files) == FALSE]
-marea_files = marea_files[grepl("step_estimates", marea_files) == FALSE]
+                          full.names = TRUE,
+                         pattern = ".*.csv.gz")
 
+oxwalk_files = list.files(here::here("data", "reorganized",
+                                     "oxwalk"),
+                          recursive = TRUE,
+                          full.names = TRUE,
+                          pattern = ".*.csv.gz")
 
 map(c(clemson_files, oxwalk_files, marea_files),
     .f = function(x){
       df = readr::read_csv(x)
+      # determine which study data come from
       if(grepl("clemson", x) == TRUE){
         study = "clemson"
         id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", x)
@@ -50,9 +53,10 @@ map(c(clemson_files, oxwalk_files, marea_files),
         df = df %>%
           rename(HEADER_TIME_STAMP = tm_dttm)
       }
+      # get sample rate
       srate = df$sample_rate[1]
 
-      # create directory if doesn't already exist
+      # create directory to store step estimates if doesn't already exist
       if (!file.exists(here::here("data", "reorganized", study, id, "step_estimates"))) {
         dir.create(here::here("data", "reorganized", study, id, "step_estimates"))
       }
