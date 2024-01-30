@@ -51,8 +51,7 @@ all_clem =
             ad = readr::read_csv(step_files_raw[grepl("adept", step_files_raw)])
             oak = readr::read_csv(step_files_raw[grepl("oak", step_files_raw)])
             sdt = readr::read_csv(step_files_raw[grepl("sdt", step_files_raw)])
-            sc = readr::read_csv(step_files_raw[grepl("stepcount.csv", step_files_raw)]) %>%
-              mutate(time = floor_date(time, unit = "seconds"))
+            sc = readr::read_csv(step_files_raw[grepl("stepcountssl", step_files_raw)])
             scrf = readr::read_csv(step_files_raw[grepl("stepcountrf", step_files_raw)])
             truth = readr::read_csv(step_files_raw[grepl("truth", step_files_raw)])
             vs = readr::read_csv(step_files_raw[grepl("vs", step_files_raw)])
@@ -60,17 +59,23 @@ all_clem =
             ad_r = readr::read_csv(step_files_resamp[grepl("adept", step_files_resamp)])
             oak_r = readr::read_csv(step_files_resamp[grepl("oak", step_files_resamp)])
             sdt_r = readr::read_csv(step_files_resamp[grepl("sdt", step_files_resamp)])
-            sc_r = readr::read_csv(step_files_resamp[grepl("stepcount.csv", step_files_resamp)]) %>%
-              mutate(time = floor_date(time, unit = "seconds"))
+            sc_r = readr::read_csv(step_files_resamp[grepl("stepcountssl", step_files_resamp)])
             scrf_r = readr::read_csv(step_files_resamp[grepl("stepcountrf", step_files_resamp)])
             vs_r = readr::read_csv(step_files_resamp[grepl("vs", step_files_resamp)])
 
             # to account for errors in stepcount
-            if(nrow(scrf) ==0){
+            if (nrow(scrf) == 0) {
               scrf = tibble(time = raw_df$time, steps_scrf = 0)
             }
-            if(nrow(scrf_r)==0){
-              scrf = tibble(time = raw_df$time, steps_scrf = 0)
+            if (nrow(scrf_r) == 0) {
+              scrf_r = tibble(time = raw_df$time, steps_scrf = 0)
+            }
+
+            if (nrow(sc) == 0) {
+              sc = tibble(time = raw_df$time, steps_scssl = 0)
+            }
+            if (nrow(sc_r) == 0) {
+              sc_r = tibble(time = raw_df$time, steps_scssl = 0)
             }
 
             df =
@@ -149,19 +154,29 @@ all_ox =
               step_files_raw = step_files[grepl("raw", step_files)]
               step_files_resamp = step_files[grepl("resampled", step_files)]
               # get actilife - only resampled data for now - need to make same format as others
+              if(sample_rate != 25){
+                acti_file = step_files_raw[grepl("acti", step_files_raw)]
+                acti = readr::read_csv(acti_file)
+                start_time = floor_date(min(raw_df$time), unit = "seconds")
+                acti = acti %>%
+                  mutate(time = start_time + as.period(index-1, unit = "seconds")) %>%
+                  select(time, steps_acti)
+              }
+
+
+
               acti_file = step_files_resamp[grepl("acti", step_files_resamp)]
-              acti = readr::read_csv(acti_file)
+              acti_r = readr::read_csv(acti_file)
               start_time = floor_date(min(raw_df$time), unit = "seconds")
 
-              acti = acti %>%
+              acti_r = acti_r %>%
                 mutate(time = start_time + as.period(index-1, unit = "seconds")) %>%
                 select(time, steps_acti)
 
               ad = readr::read_csv(step_files_raw[grepl("adept", step_files_raw)])
               oak = readr::read_csv(step_files_raw[grepl("oak", step_files_raw)])
               sdt = readr::read_csv(step_files_raw[grepl("sdt", step_files_raw)])
-              sc = readr::read_csv(step_files_raw[grepl("stepcount.csv", step_files_raw)]) %>%
-                mutate(time = floor_date(time, unit = "seconds"))
+              sc = readr::read_csv(step_files_raw[grepl("stepcountssl", step_files_raw)])
               scrf = readr::read_csv(step_files_raw[grepl("stepcountrf", step_files_raw)])
               truth = readr::read_csv(step_files_raw[grepl("truth", step_files_raw)])
               vs = readr::read_csv(step_files_raw[grepl("vs", step_files_raw)])
@@ -169,19 +184,17 @@ all_ox =
               ad_r = readr::read_csv(step_files_resamp[grepl("adept", step_files_resamp)])
               oak_r = readr::read_csv(step_files_resamp[grepl("oak", step_files_resamp)])
               sdt_r = readr::read_csv(step_files_resamp[grepl("sdt", step_files_resamp)])
-              sc_r = readr::read_csv(step_files_resamp[grepl("stepcount.csv", step_files_resamp)]) %>%
-                mutate(time = floor_date(time, unit = "seconds"))
-
+              sc_r = readr::read_csv(step_files_resamp[grepl("stepcountssl", step_files_resamp)])
               scrf_r = readr::read_csv(step_files_resamp[grepl("stepcountrf", step_files_resamp)])
               vs_r = readr::read_csv(step_files_resamp[grepl("vs", step_files_resamp)])
 
               # temp fix for bugs w stepcount
-              if(nrow(scrf) == 0){
-                scrf = tibble(time = raw_df$time, steps_scrf = 0)
-              }
-              if(nrow(scrf_r)==0){
-                scrf = tibble(time = raw_df$time, steps_scrf = 0)
-              }
+              # if(nrow(scrf) == 0){
+              #   scrf = tibble(time = raw_df$time, steps_scrf = 0)
+              # }
+              # if(nrow(scrf_r)==0){
+              #   scrf_r = tibble(time = raw_df$time, steps_scrf = 0)
+              # }
 
               df =
                 raw_df %>% select(time) %>% distinct() %>%
@@ -192,6 +205,10 @@ all_ox =
                 left_join(scrf, by = "time") %>%
                 left_join(vs, by = "time") %>%
                 left_join(sc, by = "time")
+              if(sample_rate != 25){
+                df = df %>%
+                  left_join(acti, by = "time")
+              }
 
 
               df_resampled = raw_df %>% select(time) %>% distinct() %>%
@@ -201,7 +218,7 @@ all_ox =
                 left_join(scrf_r, by = "time") %>%
                 left_join(vs_r, by = "time") %>%
                 left_join(sc_r, by = "time") %>%
-                left_join(acti, by = "time") %>%
+                left_join(acti_r, by = "time") %>%
                 rename_with(~str_c(., "_30"), .cols = starts_with("steps"))
 
               step_df = left_join(df, df_resampled, by = "time")
@@ -223,7 +240,6 @@ rm(all_ox)
 all_marea_files =  list.files(here::here("data", "reorganized", "marea"), full.names = TRUE,
                              recursive = TRUE)
 ids = substr(sub(".*marea\\/(.+)\\/.*", "\\1", all_marea_files), 1, 3) %>% unique()
-# find ./ -name "*indoor_run*" | xargs rm -r
 # start here
 
 all_marea =
@@ -261,7 +277,7 @@ all_marea =
               step_files_resamp = step_files[grepl("resampled", step_files)]
 
               # get actilife - only resampled data for now - need to make same format as others
-              acti_file = step_files_resamp[grepl("acti", step_files_resamp)]
+              acti_file = step_files_resamp[grepl("acti", step_files_raw)]
               acti = readr::read_csv(acti_file)
               start_time = floor_date(min(raw_df$time), unit = "seconds")
 
@@ -269,11 +285,18 @@ all_marea =
                 mutate(time = start_time + as.period(index-1, unit = "seconds")) %>%
                 select(time, steps_acti)
 
+              acti_file = step_files_resamp[grepl("acti", step_files_resamp)]
+              acti_r = readr::read_csv(acti_file)
+              start_time = floor_date(min(raw_df$time), unit = "seconds")
+
+              acti_r = acti_r %>%
+                mutate(time = start_time + as.period(index-1, unit = "seconds")) %>%
+                select(time, steps_acti)
+
               ad = readr::read_csv(step_files_raw[grepl("adept", step_files_raw)])
               oak = readr::read_csv(step_files_raw[grepl("oak", step_files_raw)])
               sdt = readr::read_csv(step_files_raw[grepl("sdt", step_files_raw)])
-              sc = readr::read_csv(step_files_raw[grepl("stepcount.csv", step_files_raw)]) %>%
-                mutate(time = floor_date(time, unit = "seconds"))
+              sc = readr::read_csv(step_files_raw[grepl("stepcount.csv", step_files_raw)])
               scrf = readr::read_csv(step_files_raw[grepl("stepcountrf", step_files_raw)])
               truth = readr::read_csv(step_files_raw[grepl("truth", step_files_raw)])
               vs = readr::read_csv(step_files_raw[grepl("vs", step_files_raw)])
@@ -281,8 +304,7 @@ all_marea =
               ad_r = readr::read_csv(step_files_resamp[grepl("adept", step_files_resamp)])
               oak_r = readr::read_csv(step_files_resamp[grepl("oak", step_files_resamp)])
               sdt_r = readr::read_csv(step_files_resamp[grepl("sdt", step_files_resamp)])
-              sc_r = readr::read_csv(step_files_resamp[grepl("stepcount.csv", step_files_resamp)]) %>%
-                mutate(time = floor_date(time, unit = "seconds"))
+              sc_r = readr::read_csv(step_files_resamp[grepl("stepcount.csv", step_files_resamp)])
               scrf_r = readr::read_csv(step_files_resamp[grepl("stepcountrf", step_files_resamp)])
               vs_r = readr::read_csv(step_files_resamp[grepl("vs", step_files_resamp)])
 
@@ -290,7 +312,7 @@ all_marea =
                 scrf = tibble(time = raw_df$time, steps_scrf = 0)
               }
               if(nrow(scrf_r)==0){
-                scrf = tibble(time = raw_df$time, steps_scrf = 0)
+                scrf_r = tibble(time = raw_df$time, steps_scrf = 0)
               }
 
               df =
@@ -301,7 +323,8 @@ all_marea =
                 left_join(sdt, by = "time") %>%
                 left_join(scrf, by = "time") %>%
                 left_join(vs, by = "time") %>%
-                left_join(sc, by = "time")
+                left_join(sc, by = "time") %>%
+                left_join(acti, by = "time")
 
 
               df_resampled = raw_df %>% select(time) %>% distinct() %>%
@@ -311,7 +334,7 @@ all_marea =
                 left_join(scrf_r, by = "time") %>%
                 left_join(vs_r, by = "time") %>%
                 left_join(sc_r, by = "time") %>%
-                left_join(acti, by = "time") %>%
+                left_join(acti_r, by = "time") %>%
                 rename_with(~str_c(., "_30"), .cols = starts_with("steps"))
 
               step_df = left_join(df, df_resampled, by = "time")
