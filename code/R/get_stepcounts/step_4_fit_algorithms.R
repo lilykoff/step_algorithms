@@ -8,6 +8,10 @@ options(digits.secs = 3)
 
 source(here::here("code/R/utils.R"))
 
+# system("conda activate stepcount")
+# system(here::here("code", "bash", "step_4_fit_stepcount.sh"))
+
+
 # get raw/resampled files
 clemson_files = list.files(here::here("data", "reorganized",
                                       "clemson"),

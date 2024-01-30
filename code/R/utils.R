@@ -45,13 +45,9 @@ fit_adept = function(data, sample_rate, templates = template_list) {
   steps_bysecond
 }
 
-fit_sdt <-
+fit_sdt =
   function(data,
-           sample_rate,
-           order = 4,
-           high = 0.25,
-           low = 2.5,
-           loc = "wrist") {
+           sample_rate) {
     if (!"vm" %in% colnames(data)) {
       data = data %>%
         mutate(vm = sqrt(X ^ 2 + Y ^ 2 + Z ^ 2))
@@ -61,39 +57,9 @@ fit_sdt <-
         rename(HEADER_TIME_STAMP = tm_dttm)
     }
     # vm threshold based on location
-    threshold = ifelse(loc == "wrist", 0.0267, 0.0359)
-    # create coefficients for a 4th order bandpass Butterworth filter
-    b <-
-      signal::butter(
-        n = order,
-        W = c(high, low) / (sample_rate / 2),
-        type = 'pass',
-        plane = c('z')
-      )
-
-    # demean and filter data with dual pass filter to avoid signal shift
-    data <-
-      data %>%
-      mutate(demean_vm = vm - mean(vm),
-             filt_vm = signal::filtfilt(b, demean_vm))
-
-    # find indices in which the value immediately before and immediately after the value is smaller
-    # and vm is above threshold
-    data <-
-      data %>%
-      mutate(peak = ifelse(
-        filt_vm > lag(filt_vm) &
-          filt_vm > lead(filt_vm) &
-          filt_vm > threshold,
-        1,
-        0
-      ))
-
-    # return steps by second
-    message("sdt completed")
-    data %>%
-      group_by(time = lubridate::floor_date(HEADER_TIME_STAMP)) %>%
-      summarize(steps_sdt = sum(peak, na.rm = TRUE))
+    srate = sample_rate
+    walking::sdt_count_steps(data, sample_rate = srate) %>%
+      rename(steps_sdt = steps)
   }
 
 fit_oak = function(data) {
@@ -137,88 +103,3 @@ get_truth = function(data) {
   truth
 }
 
-# function to fit all algorithms and save results
-# fit_all_algorithms = function(data) {
-#   sample_rate = data$sample_rate[1]
-#   id_subject = data$id_subject[1]
-#   id_study = data$id_study[1]
-#   cat_activity = ifelse("cat_activity" %in% colnames(data), data$cat_activity[1], NA)
-#   if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
-#     data = data %>%
-#       rename(HEADER_TIME_STAMP = tm_dttm)
-#   }
-#
-#   oak_res = estimate_steps_forest(data) %>%
-#     rename(steps_oak = steps)
-#   message("oak completed")
-#   vs_res = estimate_steps_verisense(data,
-#                                     method = "revised",
-#                                     sample_rate = sample_rate) %>%
-#     rename(steps_vs = steps)
-#   message("vs completed")
-#   adept_res = estimate_steps_adept(data,
-#                                    sample_rate = sample_rate,
-#                                    templates = template_list) %>%
-#     rename(steps_adept = steps)
-#   message("adept completed")
-#   sdt_res = estimate_steps_sdt(data,
-#                                sample_rate = sample_rate) %>%
-#     rename(steps_sdt = steps)
-#   message("sdt completed")
-#   truth = data %>%
-#     group_by(time = lubridate::floor_date(HEADER_TIME_STAMP)) %>%
-#     summarize(steps_truth = sum(ind_step, na.rm = TRUE))
-#   out =
-#     oak_res %>%
-#     full_join(vs_res) %>%
-#     full_join(adept_res) %>%
-#     full_join(sdt_res) %>%
-#     full_join(truth) %>%
-#     mutate(id_subject = id_subject,
-#            id_study = id_study,
-#            cat_activity = cat_activity,
-#            sample_rate = sample_rate)
-#   out
-# }
-#
-# fit_all_algorithms_resampled = function(data) {
-#   sample_rate = data$sample_rate[1]
-#   id_subject = data$id_subject[1]
-#   id_study = data$id_study[1]
-#   sample_rate_old = data$sample_rate_old[1]
-#   cat_activity = ifelse("cat_activity" %in% colnames(data), data$cat_activity[1], NA)
-#   if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
-#     data = data %>%
-#       rename(HEADER_TIME_STAMP = tm_dttm)
-#   }
-#
-#   oak_res = estimate_steps_forest(data) %>%
-#     rename(steps_oak = steps)
-#   message("oak completed")
-#   vs_res = estimate_steps_verisense(data,
-#                                     method = "revised",
-#                                     sample_rate = sample_rate) %>%
-#     rename(steps_vs = steps)
-#   message("vs completed")
-#   adept_res = estimate_steps_adept(data,
-#                                    sample_rate = sample_rate,
-#                                    templates = template_list) %>%
-#     rename(steps_adept = steps)
-#   message("adept completed")
-#   sdt_res = estimate_steps_sdt(data,
-#                                sample_rate = sample_rate) %>%
-#     rename(steps_sdt = steps)
-#   message("sdt completed")
-#
-#   out =
-#     oak_res %>%
-#     full_join(vs_res) %>%
-#     full_join(adept_res) %>%
-#     full_join(sdt_res) %>%
-#     mutate(id_subject = id_subject,
-#            id_study = id_study,
-#            cat_activity = cat_activity,
-#            sample_rate = sample_rate,
-#            sample_rate_old = sample_rate_old)
-#   out
-# }

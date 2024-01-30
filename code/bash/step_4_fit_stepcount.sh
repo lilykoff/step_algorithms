@@ -1,5 +1,6 @@
 # code to run stepcount and save to results/stepcount folder
 # both ssl and random forest version
+
 conda activate stepcount
 
 for i in data/stepcount/clemson/*30Hz.csv.gz;

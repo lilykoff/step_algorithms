@@ -1,5 +1,4 @@
 library(tidyverse)
-options(digits.secs =3)
 # values = c("#990F0FFF","#CC5151FF",
 #            "#99540FFF","#CC8E51FF",
 #            "#6B990FFF", "#A3CC51FF",
@@ -60,10 +59,10 @@ col4  = "#A26DC2FF"; col5 = "#FC719EFF"; col6 = "#F8B620FF"
 # tables 3
 oxwalk10 %>%
   mutate(id_study = "oxwalk",
-        cat_activity = "oxwalk") %>%
+         cat_activity = "oxwalk") %>%
   bind_rows(clemson10 %>% mutate(id_study = "clemson")) %>%
   bind_rows(marea10 %>% mutate(cat_activity = "marea",
-                             id_study = "marea")) %>%
+                               id_study = "marea")) %>%
   mutate(id_study = factor(id_study, levels = c("clemson", "marea", "oxwalk"))) %>%
   group_by(id_subject, id_study, cat_activity) %>%
   summarize(across(starts_with("steps"),
@@ -106,9 +105,9 @@ oxwalk10 %>%
   bind_rows(marea10 %>% mutate(cat_activity = "marea",
                                id_study = "marea")) %>%
   mutate(id_study = factor(id_study, levels = c("clemson", "marea", "oxwalk")),
-          cat_activity = factor(cat_activity,
-                              levels = c("walk_regular", "walk_semiregular",
-                                         "walk_irregular", "marea", "ox"))) %>%
+         cat_activity = factor(cat_activity,
+                               levels = c("walk_regular", "walk_semiregular",
+                                          "walk_irregular", "marea", "ox"))) %>%
   group_by(id_subject, cat_activity) %>%
   summarize(across(starts_with("steps"),
                    ~sum(.x, na.rm = TRUE))) %>%
@@ -427,7 +426,7 @@ cor.mat_clem =
 colnames(cor.mat_clem) = rownames(cor.mat_clem) = sub(".*steps\\_", "", colnames(cor.mat_clem))
 
 reg.cor = ggcorrplot::ggcorrplot(cor.mat_clem, type = "lower", lab = TRUE,
-                       title = "Clemson Correlations, Regular Walking")+
+                                 title = "Clemson Correlations, Regular Walking")+
   scale_x_discrete(labels = c("Oak", "SDT", "Stepcount", "Verisense","ActiLife", "Truth"))+
   scale_y_discrete(labels = c("ADEPT", "Oak", "SDT", "Stepcount", "Verisense", "ActiLife"))
 
@@ -441,7 +440,7 @@ cor.mat_clem =
 colnames(cor.mat_clem) = rownames(cor.mat_clem) = sub(".*steps\\_", "", colnames(cor.mat_clem))
 
 semi.cor = ggcorrplot::ggcorrplot(cor.mat_clem, type = "lower", lab = TRUE,
-                       title = "Clemson Correlations, Semiregular Walking")+
+                                  title = "Clemson Correlations, Semiregular Walking")+
   scale_x_discrete(labels = c("Oak", "SDT", "Stepcount", "Verisense", "ActiLife", "Truth"))+
   scale_y_discrete(labels = c("ADEPT", "Oak", "SDT", "Stepcount", "Verisense", "ActiLife"))
 
@@ -454,7 +453,7 @@ cor.mat_clem =
 colnames(cor.mat_clem) = rownames(cor.mat_clem) = sub(".*steps\\_", "", colnames(cor.mat_clem))
 
 irr.corr = ggcorrplot::ggcorrplot(cor.mat_clem, type = "lower", lab = TRUE,
-                       title = "Clemson Correlations, Irregular Walking")+
+                                  title = "Clemson Correlations, Irregular Walking")+
   scale_x_discrete(labels = c("Oak", "SDT", "Stepcount", "Verisense","ActiLife", "Truth"))+
   scale_y_discrete(labels = c("ADEPT", "Oak", "SDT", "Stepcount", "Verisense", "ActiLife"))
 
@@ -480,7 +479,7 @@ cor.mat_ox =
 colnames(cor.mat_ox) = rownames(cor.mat_ox) = sub(".*steps\\_", "", colnames(cor.mat_ox))
 
 ox.cor = ggcorrplot::ggcorrplot(cor.mat_ox, type = "lower", lab = TRUE,
-                       title = "Ox Correlations")+
+                                title = "Ox Correlations")+
   scale_x_discrete(labels = c("Oak", "SDT", "Verisense", "ActiLife","Stepcount", "Truth"))+
   scale_y_discrete(labels = c("ADEPT", "Oak", "SDT", "Verisense", "ActiLife", "Stepcount"))
 
@@ -493,7 +492,7 @@ cor.mat_marea =
 colnames(cor.mat_marea) = rownames(cor.mat_marea) = sub(".*steps\\_", "", colnames(cor.mat_marea))
 
 marea.cor = ggcorrplot::ggcorrplot(cor.mat_marea, type = "lower", lab = TRUE,
-                                title = "MAREA Correlations") +
+                                   title = "MAREA Correlations") +
   scale_x_discrete(labels = c("Oak", "SDT", "Stepcount", "Verisense", "ActiLife", "Truth"))+
   scale_y_discrete(labels = c("ADEPT", "Oak", "SDT", "Stepcount", "Verisense",
                               "ActiLife"))
@@ -703,7 +702,7 @@ means = summary_df  %>%
             lb = mean - 1.96 * sd)
 
 ggplot(summary_df  %>%
-                 mutate(avgdiff = avgdiff * 100)) +
+         mutate(avgdiff = avgdiff * 100)) +
   geom_point(aes(x = average, y = avgdiff))+
   facet_grid(.~ algorithm, labeller = labeller(algorithm = newlabs)) +
   geom_hline(data = means, aes(yintercept = mean), col = "#4F7CBAFF")+
@@ -805,7 +804,7 @@ map(ox_list, make_truth_plot)
 dev.off()
 
 marea_list = split(marea, f = list(marea$id_subject,
-                                       marea$cat_activity)) %>%
+                                   marea$cat_activity)) %>%
   vctrs::list_drop_empty()
 
 pdf(file = here::here("analysis/marea_plots_truth_predicted.pdf"))
@@ -849,8 +848,8 @@ oxwalk_15_list =
       labs(x = "Time (s)", y = "VM")+
       theme(legend.position = "bottom")+
       scale_y_continuous(limits = c(0.5,2))
-      paletteer::scale_fill_paletteer_d("colorBlindness::LightBlue2DarkBlue7Steps", name = "Steps")
-      })
+    paletteer::scale_fill_paletteer_d("colorBlindness::LightBlue2DarkBlue7Steps", name = "Steps")
+  })
 
 pdf(file = here::here("analysis/oxwalk_15_plots.pdf"))
 oxwalk_15 %>%
@@ -870,23 +869,23 @@ oxwalk_15 %>%
       theme(legend.position = "bottom")+
       scale_y_continuous(limits = c(0.5,2))
     paletteer::scale_fill_paletteer_d("colorBlindness::LightBlue2DarkBlue7Steps", name = "Steps")
-  print(plot)
-    })
+    print(plot)
+  })
 
 dev.off()
 
 
-  # slice(1:100) %>%
-  # unnest(cols = raw_data) %>%
-  # pivot_longer(cols = starts_with("steps") & (contains("30") | contains("truth")) & !contains("sc")) %>%
-  # ggplot()+
-  # geom_rect(aes(xmin = time, xmax = time + .9, fill = as.factor(round(value, 1)), ymin = 0, ymax = 2))+
-  # geom_line(aes(x = tm_dttm, y = sqrt(X^2 + Y^2 + Z^2)))+
-  # theme_bw()+
-  # facet_grid(.~name)+
-  # labs(x = "Time (s)", y = "VM")+
-  # theme(legend.position = "bottom")+
-  # paletteer::scale_fill_paletteer_d("colorBlindness::LightBlue2DarkBlue7Steps", name = "Steps")
+# slice(1:100) %>%
+# unnest(cols = raw_data) %>%
+# pivot_longer(cols = starts_with("steps") & (contains("30") | contains("truth")) & !contains("sc")) %>%
+# ggplot()+
+# geom_rect(aes(xmin = time, xmax = time + .9, fill = as.factor(round(value, 1)), ymin = 0, ymax = 2))+
+# geom_line(aes(x = tm_dttm, y = sqrt(X^2 + Y^2 + Z^2)))+
+# theme_bw()+
+# facet_grid(.~name)+
+# labs(x = "Time (s)", y = "VM")+
+# theme(legend.position = "bottom")+
+# paletteer::scale_fill_paletteer_d("colorBlindness::LightBlue2DarkBlue7Steps", name = "Steps")
 
 
 
