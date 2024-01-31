@@ -1,26 +1,16 @@
 # process results from stepcount into same format as other algorithms
 # f5896677e6e849725ef8cccea2e627f23421a548
-# random forest results
+
 library(tidyverse)
 options(digits.secs = 3)
 source(here::here("code/R/utils.R"))
 
-
-files = list.files(here::here("results/stepcount_rf"),
-                   full.names = TRUE,
-                   recursive = TRUE)
-
+# random forest first
 clemson_csvs = list.files(
   here::here("results/stepcount_rf/clemson"),
   full.names = TRUE,
   recursive = TRUE,
   pattern = ".*-Steps.csv"
-)
-clemson_csvs_steps =  list.files(
-  here::here("results/stepcount_rf/clemson"),
-  full.names = TRUE,
-  recursive = TRUE,
-  pattern = ".*-StepTimes.csv"
 )
 
 marea_csvs = list.files(
@@ -29,12 +19,7 @@ marea_csvs = list.files(
   recursive = TRUE,
   pattern = ".*-Steps.csv"
 )
-marea_csvs_steps =  list.files(
-  here::here("results/stepcount_rf/marea"),
-  full.names = TRUE,
-  recursive = TRUE,
-  pattern = ".*-StepTimes.csv"
-)
+
 
 ox_csvs = list.files(
   here::here("results/stepcount_rf/oxwalk"),
@@ -42,23 +27,27 @@ ox_csvs = list.files(
   recursive = TRUE,
   pattern = ".*-Steps.csv"
 )
-ox_csvs_steps =  list.files(
-  here::here("results/stepcount_rf/oxwalk"),
-  full.names = TRUE,
-  recursive = TRUE,
-  pattern = ".*-StepTimes.csv"
-)
+
 
 
 # for these ones need to use the "steps" csv to get true length of times
-map2(.x = clemson_csvs, .y = clemson_csvs_steps,
-     function(file, stepfile) {
-       df_times = readr::read_csv(file)
+map(.x = clemson_csvs,
+     function(file) {
+       df_times = readr::read_csv(file) # read in total steps file
+       # read in step times files
+       stepfile = list.files(here::here("results", "stepcount_rf", "clemson",
+                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                                        full.names = TRUE,
+                                        recursive = TRUE,
+                                        pattern = "StepTimes.csv")
+       step_df = readr::read_csv(stepfile)
+
+       # expand times file to get all seconds, plus a 10s buffer at end
        start = min(df_times$time)
        end = max(df_times$time) + as.period(10, "seconds")
        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
 
-       step_df = readr::read_csv(stepfile)
+       # if any rows (i.e. any steps)
        if(nrow(step_df) > 0) {
          step_df = step_df %>%
            mutate(steps_scrf = 1) %>%
@@ -84,9 +73,16 @@ map2(.x = clemson_csvs, .y = clemson_csvs_steps,
                                    fname))
      })
 
-map2(ox_csvs, ox_csvs_steps,
-     function(file, stepfile) {
+map(.x = ox_csvs,
+     function(file) {
        df_times = readr::read_csv(file)
+       stepfile = list.files(here::here("results", "stepcount_rf", "oxwalk",
+                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                             full.names = TRUE,
+                             recursive = TRUE,
+                             pattern = "StepTimes.csv")
+       step_df = readr::read_csv(stepfile)
+
        start = min(df_times$time)
        end = max(df_times$time) + as.period(10, "seconds")
        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
@@ -118,9 +114,15 @@ map2(ox_csvs, ox_csvs_steps,
      })
 
 
-map2(marea_csvs, marea_csvs_steps,
-     function(file, stepfile) {
+map(.x = marea_csvs,
+     function(file) {
        df_times = readr::read_csv(file)
+       stepfile = list.files(here::here("results", "stepcount_rf", "marea",
+                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                             full.names = TRUE,
+                             recursive = TRUE,
+                             pattern = "StepTimes.csv")
+       step_df = readr::read_csv(stepfile)
        start = min(df_times$time)
        end = max(df_times$time) + as.period(10, "seconds")
        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit =
@@ -152,10 +154,6 @@ map2(marea_csvs, marea_csvs_steps,
      })
 
 # SSL results
-# start here
-files = list.files(here::here("results/stepcount_ssl"),
-                   full.names = TRUE,
-                   recursive = TRUE)
 
 clemson_csvs = list.files(
   here::here("results/stepcount_ssl/clemson"),
@@ -163,24 +161,13 @@ clemson_csvs = list.files(
   recursive = TRUE,
   pattern = ".*-Steps.csv"
 )
-clemson_csvs_steps =  list.files(
-  here::here("results/stepcount_ssl/clemson"),
-  full.names = TRUE,
-  recursive = TRUE,
-  pattern = ".*-StepTimes.csv"
-)
+
 
 marea_csvs = list.files(
   here::here("results/stepcount_ssl/marea"),
   full.names = TRUE,
   recursive = TRUE,
   pattern = ".*-Steps.csv"
-)
-marea_csvs_steps =  list.files(
-  here::here("results/stepcount_ssl/marea"),
-  full.names = TRUE,
-  recursive = TRUE,
-  pattern = ".*-StepTimes.csv"
 )
 
 ox_csvs = list.files(
@@ -189,23 +176,22 @@ ox_csvs = list.files(
   recursive = TRUE,
   pattern = ".*-Steps.csv"
 )
-ox_csvs_steps =  list.files(
-  here::here("results/stepcount_ssl/oxwalk"),
-  full.names = TRUE,
-  recursive = TRUE,
-  pattern = ".*-StepTimes.csv"
-)
 
 
-# for these ones need to use the "steps" csv to get true length of times
-map2(.x = clemson_csvs, .y = clemson_csvs_steps,
-     function(file, stepfile) {
+map(.x = clemson_csvs,
+     function(file) {
        df_times = readr::read_csv(file)
+       stepfile = list.files(here::here("results", "stepcount_ssl", "clemson",
+                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                             full.names = TRUE,
+                             recursive = TRUE,
+                             pattern = "StepTimes.csv")
+       step_df = readr::read_csv(stepfile)
+
        start = min(df_times$time)
        end = max(df_times$time) + as.period(10, "seconds")
        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
 
-       step_df = readr::read_csv(stepfile)
        if(nrow(step_df) > 0) {
          step_df = step_df %>%
            mutate(steps_scssl = 1) %>%
@@ -232,14 +218,20 @@ map2(.x = clemson_csvs, .y = clemson_csvs_steps,
                                    fname))
      })
 
-map2(ox_csvs, ox_csvs_steps,
-     function(file, stepfile) {
+map(.x = ox_csvs,
+     function(file) {
        df_times = readr::read_csv(file)
+       stepfile = list.files(here::here("results", "stepcount_ssl", "oxwalk",
+                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                             full.names = TRUE,
+                             recursive = TRUE,
+                             pattern = "StepTimes.csv")
+       step_df = readr::read_csv(stepfile)
+
        start = min(df_times$time)
        end = max(df_times$time) + as.period(10, "seconds")
        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
 
-       step_df = readr::read_csv(stepfile)
        if(nrow(step_df) > 0) {
          step_df = step_df %>%
            mutate(steps_scssl = 1) %>%
@@ -267,15 +259,20 @@ map2(ox_csvs, ox_csvs_steps,
      })
 
 
-map2(marea_csvs, marea_csvs_steps,
-     function(file, stepfile) {
+map(.x = marea_csvs,
+     function(file) {
        df_times = readr::read_csv(file)
+       stepfile = list.files(here::here("results", "stepcount_ssl", "marea",
+                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                             full.names = TRUE,
+                             recursive = TRUE,
+                             pattern = "StepTimes.csv")
+       step_df = readr::read_csv(stepfile)
        start = min(df_times$time)
        end = max(df_times$time) + as.period(10, "seconds")
        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit =
                                             "seconds"))
 
-       step_df = readr::read_csv(stepfile)
        if(nrow(step_df) > 0) {
          step_df = step_df %>%
            mutate(steps_scssl = 1) %>%
@@ -301,11 +298,13 @@ map2(marea_csvs, marea_csvs_steps,
                                    fname))
      })
 
-# process results from actilife into same as other algorithms
+rm(list = ls())
 
+# process results from actilife into same as other algorithms
 library(tidyverse)
 options(digits.secs = 3)
 source(here::here("code/R/utils.R"))
+
 files = list.files(
   here::here("results/actilife/clemson"),
   full.names = TRUE,
@@ -313,17 +312,33 @@ files = list.files(
   pattern = "resampled"
 )
 
-# only works on resampled data, so just use those
-
+# only works on data above 25 Hz, so just use those
 
 map(
   files,
   .f = function(x) {
+    id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", x)
+    raw_path = sub(".*\\/(.+)1sec.*", "\\1", x)
+    raw_file = list.files(here::here("data", "reorganized", "clemson", id),
+                          full.names = TRUE,
+                          recursive = TRUE,
+                          pattern = paste0(raw_path, ".csv.gz"))
+
     temp = readr::read_csv(x,
                            col_names = c("X", "Y", "Z", "steps_acti"),
                            skip = 10) %>%
       mutate(index = row_number())
-    id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", x)
+
+    raw_df =
+      readr::read_csv(raw_file, n_max = 1)
+
+    start_time = floor_date(min(raw_df$tm_dttm), unit = "seconds")
+
+    temp = temp %>%
+      mutate(time = start_time + as.period(index-1, unit = "seconds")) %>%
+      select(time, steps_acti)
+
+
     if (!file.exists(here::here("data", "reorganized", "clemson", id, "step_estimates"))) {
       dir.create(here::here("data", "reorganized", "clemson", id, "step_estimates"))
     }
@@ -347,11 +362,28 @@ files = list.files(
 map(
   files,
   .f = function(x) {
+    id = str_split(sub(".*marea\\-(.+)\\-.*", "\\1", x), "-")[[1]][1]
+
     temp = readr::read_csv(x,
                            col_names = c("X", "Y", "Z", "steps_acti"),
                            skip = 10) %>%
       mutate(index = row_number())
-    id = str_split(sub(".*marea\\-(.+)\\-.*", "\\1", x), "-")[[1]][1]
+
+    raw_path = sub(".*\\/(.+)1sec.*", "\\1", x)
+    raw_file = list.files(here::here("data", "reorganized", "marea", id),
+                          full.names = TRUE,
+                          recursive = TRUE,
+                          pattern = paste0(raw_path, ".csv.gz"))
+    raw_df =
+      readr::read_csv(raw_file, n_max = 1)
+
+    start_time = floor_date(min(raw_df$tm_dttm), unit = "seconds")
+
+    temp = temp %>%
+      mutate(time = start_time + as.period(index-1, unit = "seconds")) %>%
+      select(time, steps_acti)
+
+
     if (!file.exists(here::here("data", "reorganized", "marea", id, "step_estimates"))) {
       dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"))
     }
@@ -381,11 +413,26 @@ files = c(
 map(
   files,
   .f = function(x) {
+    id = sub(".*oxwalk\\-(.+)\\-r.*", "\\1", x)
     temp = readr::read_csv(x,
                            col_names = c("X", "Y", "Z", "steps_acti"),
                            skip = 10) %>%
       mutate(index = row_number())
-    id = sub(".*oxwalk\\-(.+)\\-r.*", "\\1", x)
+
+    raw_path = sub(".*\\/(.+)1sec.*", "\\1", x)
+    raw_file = list.files(here::here("data", "reorganized", "oxwalk", id),
+                          full.names = TRUE,
+                          recursive = TRUE,
+                          pattern = paste0(raw_path, ".csv.gz"))
+    raw_df =
+      readr::read_csv(raw_file, n_max = 1)
+
+    start_time = floor_date(min(raw_df$tm_dttm), unit = "seconds")
+
+    temp = temp %>%
+      mutate(time = start_time + as.period(index-1, unit = "seconds")) %>%
+      select(time, steps_acti)
+
     if (!file.exists(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))) {
       dir.create(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))
     }

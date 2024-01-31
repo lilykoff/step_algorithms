@@ -27,28 +27,30 @@ clem_resampled =
           id_subject = sub,
           id_study = "clemson",
           cat_activity = activity,
-          sample_rate = 30
+          sample_rate = sample_rate_target
         ) %>%
         rename(tm_dttm = HEADER_TIMESTAMP)
 
-      fname = paste0("clemson-",
-                     sub,
-                     "-",
-                     activity,
-                     "-resampled",
-                     samp_rate,
-                     "to30Hz",
-                     ".csv.gz")
+      fname = paste0(
+        "clemson-",
+        sub,
+        "-",
+        activity,
+        "-resampled",
+        samp_rate,
+        "to",
+        sample_rate_target,
+        "Hz",
+        ".csv.gz"
+      )
       readr::write_csv(resamp,
                        here::here("data", "reorganized",
                                   "clemson", sub, fname))
       resamp
 
     }
-  ) %>%
-  bind_rows()
+  )
 
-# readr::write_csv(clem_resampled, here::here("data/processed/clemson_ped_resampled.csv.gz"))
 rm(clem_files)
 
 # marea
@@ -81,31 +83,33 @@ marea_resampled =
           id_subject = sub,
           id_study = "marea",
           cat_activity_large = activity,
-          sample_rate = 30
+          sample_rate = sample_rate_target
         ) %>%
         rename(tm_dttm = HEADER_TIMESTAMP) %>%
         mutate(second = floor_date(tm_dttm, unit = "0.5 seconds")) %>%
         left_join(act_key, by = "second") %>%
         select(-second)
 
-      fname = paste0("marea-",
-                     sub,
-                     "-",
-                     activity,
-                     "-resampled",
-                     samp_rate,
-                     "to30Hz",
-                     ".csv.gz")
+      fname = paste0(
+        "marea-",
+        sub,
+        "-",
+        activity,
+        "-resampled",
+        samp_rate,
+        "to",
+        sample_rate_target,
+        "Hz",
+        ".csv.gz"
+      )
       readr::write_csv(resamp,
                        here::here("data", "reorganized",
                                   "marea", sub, fname))
       resamp
 
     }
-  ) %>%
-  bind_rows()
+  )
 
-# readr::write_csv(marea_resampled, here::here("data/processed/mareason_ped_resampled.csv.gz"))
 rm(marea_files)
 
 # ox files
@@ -128,20 +132,22 @@ ox_resampled =
                                    method = "linear") %>%
         mutate(id_subject = sub,
                id_study = "oxwalk",
-               sample_rate = 30) %>%
+               sample_rate = sample_rate_target) %>%
         rename(tm_dttm = HEADER_TIMESTAMP)
 
-      fname = paste0("oxwalk-", sub, "-resampled", samp_rate, "to30Hz", ".csv.gz")
+      fname = paste0("oxwalk-",
+                     sub,
+                     "-resampled",
+                     samp_rate,
+                     "to",
+                     sample_rate_target,
+                     "Hz",
+                     ".csv.gz")
       readr::write_csv(resamp,
                        here::here("data", "reorganized",
                                   "oxwalk", sub, fname))
       resamp
     }
-  ) %>%
-  bind_rows()
-
-
-# readr::write_csv(ox_resampled, here::here("data/processed/ox_data_resampled.csv.gz"))
+  )
 
 rm(ox_files)
-rm(ox_resampled)

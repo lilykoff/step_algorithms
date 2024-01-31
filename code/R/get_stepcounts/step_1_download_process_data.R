@@ -2,7 +2,6 @@
 # process data into unified formats and output individual files to reorganized data folder
 
 # clemson first
-library(here)
 library(purrr)
 library(tidyverse)
 library(readr)
@@ -10,24 +9,35 @@ library(readr)
 url = "https://cecas.clemson.edu/tracking/Pedometer/Data.zip"
 
 options(timeout = 300)
-options(digits.secs = 3)
+options(digits.secs = 3) # want three digits for time stamps
 downloader::download(url, dest = "clemsonped.zip", mode = "wb")
-unzip("clemsonped.zip", exdir = here::here("data/raw/clemson"))
+# create directory for raw data
 
+if(!file.exists(here::here("data", "raw", "clemson"))){
+  dir.create(here::here("data", "raw", "clemson"))
+}
+unzip("clemsonped.zip", exdir = here::here("data", "raw", "clemson"))
 
-ped_files = list.files(here::here("data/raw/clemson"),
+# files with step indices
+step_files = list.files(here::here("data", "raw", "clemson"),
+                        recursive = TRUE,
+                        full.names = TRUE,
+                        pattern = "steps")
+# acceleration files
+acc_files = list.files(here::here("data/raw/clemson"),
                        recursive = TRUE,
-                       full.names = TRUE)
-acc_ped_files = ped_files[-grep("steps.txt", ped_files)]
-step_files = ped_files[grep("steps.txt", ped_files)]
-# 9 columns are wrist xyz, hip xyz and ankle xyz
+                       full.names = TRUE,
+                       pattern = "lar.txt")
 
+
+# 9 columns in are wrist xyz, hip xyz and ankle xyz
+# create a start time since the data don't have time stamps
 start = lubridate::floor_date(as.POSIXct("2023-10-23 10:00:00", tz = "UTC"), unit = "seconds")
 
 get_and_join_files =
-  function(acc_ped_file) {
+  function(file) {
     temp = readr::read_table(
-      acc_ped_file,
+      file,
       col_names = c(
         "wrist_x",
         "wrist_y",
@@ -42,17 +52,25 @@ get_and_join_files =
     ) %>%
       select(1:3) %>%
       mutate(
-        id_type = sub("\\.txt.*", "", sub(".*\\/P", "", acc_ped_file)),
+        id_type = sub(".*P(.+).txt.*", "\\1", file), # get ID
         id = str_split(id_type, "_", simplify = TRUE)[1],
-        loc = str_split(id_type, "_", simplify = TRUE)[, 2],
+        loc = str_split(id_type, "_", simplify = TRUE)[,2],
         ind = row_number()
       )
     id = temp$id[1]
-    loc = paste0("/", temp$loc[1]) # to distinguish regular and semi regular
-    loc = ifelse(loc == "/Semiregular", "/SemiRegular", loc) # annoying difference in spelling
-    step_file = step_files[grep(id, step_files)][grep(loc, step_files[grep(id, step_files)])]
+    loc = temp$loc[1]
+    # find step file associated with acceleration file
+    step_file = list.files(
+             here::here("data", "raw", "clemson", paste0("P", id), loc),
+             recursive = TRUE,
+             full.names = TRUE,
+             pattern = "steps",
+             ignore.case = TRUE
+           )
     step_locs = read_table(step_file, col_names = c("ind", "foot"))
 
+    # join steps with acceleration
+    # we don't consider "shifts" steps
     temp =
       temp %>%
       left_join(step_locs) %>%
@@ -85,6 +103,7 @@ get_and_join_files =
     activity =  temp$cat_activity[1]
     fname = paste0("clemson-", id_new, "-", activity,
                    "-", "raw15Hz.csv.gz")
+    # write to csv
     if (!file.exists(here::here("data", "reorganized", "clemson", id_new))) {
       dir.create(here::here("data", "reorganized", "clemson", id_new))
     }
@@ -93,40 +112,48 @@ get_and_join_files =
     temp
   }
 
-ped_data = map(.x = acc_ped_files,
+# also save all data to csv and write to processed
+ped_data = map(.x = acc_files,
                .f = get_and_join_files) %>%
   bind_rows()
 
+if(!file.exists(here::here("data", "processed"))){
+  dir.create(here::here("data", "processed"))
+}
 
 write_csv(ped_data, here::here("data/processed/clemson.csv.gz"))
 
-# system("rm clemsonped.zip")
+
 rm(list = ls())
 
 # marea data
 library(readr)
 library(purrr)
 library(tidyverse)
-
 options(digits.secs = 3)
 # download raw data from https://wiki.hh.se/caisr/index.php/Gait_database
 # sign use agreement first
+
+# create directory for raw files
+if(!file.exists("data", "raw", "marea")){
+  dir.create(here::here("data", "raw", "marea"))
+}
 
 # get files from wrist
 sub_files = list.files(
   here::here("data/raw/MAREA_dataset/Subject Data_txt format"),
   recursive = TRUE,
-  full.names = TRUE
+  full.names = TRUE,
+  pattern = "Wrist"
 )
-sub_files = sub_files[grepl("Wrist", sub_files)]
 
 # get activity start and ends
 timings = list.files(
   here::here("data/raw/MAREA_dataset/Activity Timings"),
   recursive = TRUE,
-  full.names = TRUE
+  full.names = TRUE,
+  pattern = "txt"
 )
-timings = timings[grepl(".txt", timings)]
 
 # indoor
 indoor = read_csv(
@@ -334,7 +361,7 @@ marea_dat_labeled_steps =
       activity_large == "treadmill_walkrun" &
         time_min == 9 ~ "7.6 km/hr",
       activity_large == "treadmill_walkrun" &
-        time_min >= 10 ~ "8.0 km/hr",
+        time_min == 10 ~ "8.0 km/hr",
       TRUE ~ "self_selected"
     ),
     slope = case_when(
@@ -381,10 +408,13 @@ final_dat %>%
 #   geom_line()+
 #   geom_point(aes(x = tm_dttm, y = ind_step))
 
+if(!file.exsists(here::here("data", "processed"))){
+  dir.create(here::here("data", "processed"))
+}
 
 write_csv(final_dat, here::here("data/processed/marea.csv.gz"))
 
-# split and write like other data
+# split and write into individual csvs
 
 marea_list = split(final_dat,
                    f = list(final_dat$id_subject,
@@ -406,8 +436,6 @@ lapply(marea_list, function(item) {
 rm(list = ls())
 
 # oxwalk data
-
-library(here)
 library(purrr)
 library(tidyverse)
 library(readr)
@@ -418,6 +446,9 @@ url = "https://ora.ox.ac.uk/objects/uuid:19d3cb34-e2b3-4177-91b6-1bad0e0163e7/fi
 
 options(timeout = 300)
 downloader::download(url, dest = "oxwalk.zip", mode = "wb")
+if(!file.exsits(here::here("data", "raw", "oxwalk"))){
+  dir.create(here::here("data", "raw", "oxwalk"))
+}
 unzip("oxwalk.zip", exdir = here::here("data/raw/oxwalk"))
 
 
@@ -431,7 +462,6 @@ wrist_files_25 = list.files(
   recursive = TRUE,
   full.names = TRUE
 )
-
 
 
 get_and_join_files =
@@ -465,5 +495,3 @@ ox_data = map(.x = c(wrist_files_100, wrist_files_25),
 
 
 write_csv(ox_data, here::here("data/processed/ox_data.csv.gz"))
-
-# system("rm oxwalk.zip")
