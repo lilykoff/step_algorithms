@@ -7,3 +7,4 @@ system()
 source(here::here("code", "R", "get_stepcounts", "step_5_process_actilife_stepcount_results.R"))
 source(here::here("code", "R", "get_stepcounts", "step_6_join_and_nest.R"))
 
+# TO DO: Makefiles

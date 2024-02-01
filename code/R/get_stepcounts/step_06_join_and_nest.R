@@ -1,5 +1,6 @@
 library(tidyverse)
-# HERE
+# commit sha 1afed4edaeed1d4b3483c60c0b3d8595198b863b
+# version 3.2.1
 
 # step six join and nest
 # read in raw files, nest datetime, then join with steps
@@ -72,16 +73,20 @@ all_clem =
               left_join(ad, by = "time") %>%
               left_join(oak, by = "time") %>%
               left_join(sdt, by = "time") %>%
-              left_join(vs, by = "time")
+              left_join(vs, by = "time") %>%
+              left_join(scssl, by = "time") %>%
+              left_join(scrf, by = "time")
 
-            if(nrow(scssl) > 0){
-              df = df %>%
-                left_join(scssl, by = "time")
-            }
-            if(nrow(scrf) > 0){
-              df = df %>%
-                left_join(scrf, by = "time")
-            }
+
+
+            # if(nrow(scssl) > 0){
+            #   df = df %>%
+            #     left_join(scssl, by = "time")
+            # }
+            # if(nrow(scrf) > 0){
+            #   df = df %>%
+            #     left_join(scrf, by = "time")
+            # }
             if(nrow(acti) > 0){
               df = df %>%
                 left_join(acti, by = "time")
@@ -92,16 +97,18 @@ all_clem =
               left_join(ad_r, by = "time") %>%
               left_join(oak_r, by = "time") %>%
               left_join(sdt_r, by = "time") %>%
-              left_join(vs_r, by = "time")
+              left_join(vs_r, by = "time") %>%
+              left_join(scssl_r, by = "time") %>%
+              left_join(scrf_r, by = "time")
 
-            if(nrow(scssl_r) > 0){
-                df_resampled = df_resampled %>%
-                  left_join(scssl_r, by = "time")
-            }
-            if(nrow(scrf_r) > 0){
-              df_resampled = df_resampled %>%
-                left_join(scrf_r, by = "time")
-            }
+            # if(nrow(scssl_r) > 0){
+            #     df_resampled = df_resampled %>%
+            #       left_join(scssl_r, by = "time")
+            # }
+            # if(nrow(scrf_r) > 0){
+            #   df_resampled = df_resampled %>%
+            #     left_join(scrf_r, by = "time")
+            # }
             if(nrow(acti_r) > 0){
               df_resampled = df_resampled %>%
                 left_join(acti_r, by = "time")
@@ -111,6 +118,7 @@ all_clem =
               rename_with(~str_c(., "_30"), .cols = starts_with("steps"))
 
             step_df = left_join(df, df_resampled, by = "time")
+
             both_w_steps = left_join(both, step_df, by = "time")
             fname = paste0("clemson-", id, "-", activity, "-nested.rds")
             saveRDS(both_w_steps, here::here("data", "processed", "clemson", id,
@@ -190,16 +198,18 @@ all_ox =
                 left_join(ad, by = "time") %>%
                 left_join(oak, by = "time") %>%
                 left_join(sdt, by = "time") %>%
-                left_join(vs, by = "time")
+                left_join(vs, by = "time") %>%
+                left_join(scssl, by = "time") %>%
+                left_join(scrf, by = "time")
 
-              if(nrow(scssl) > 0){
-                df = df %>%
-                  left_join(scssl, by = "time")
-              }
-              if(nrow(scrf) > 0){
-                df = df %>%
-                  left_join(scrf, by = "time")
-              }
+              # if(nrow(scssl) > 0){
+              #   df = df %>%
+              #     left_join(scssl, by = "time")
+              # }
+              # if(nrow(scrf) > 0){
+              #   df = df %>%
+              #     left_join(scrf, by = "time")
+              # }
               if(nrow(acti) > 0){
                 df = df %>%
                   left_join(acti, by = "time")
@@ -210,16 +220,18 @@ all_ox =
                 left_join(ad_r, by = "time") %>%
                 left_join(oak_r, by = "time") %>%
                 left_join(sdt_r, by = "time") %>%
-                left_join(vs_r, by = "time")
+                left_join(vs_r, by = "time") %>%
+                left_join(scssl_r, by = "time") %>%
+                left_join(scrf_r, by = "time")
 
-              if(nrow(scssl_r) > 0){
-                df_resampled = df_resampled %>%
-                  left_join(scssl_r, by = "time")
-              }
-              if(nrow(scrf_r) > 0){
-                df_resampled = df_resampled %>%
-                  left_join(scrf_r, by = "time")
-              }
+              # if(nrow(scssl_r) > 0){
+              #   df_resampled = df_resampled %>%
+              #     left_join(scssl_r, by = "time")
+              # }
+              # if(nrow(scrf_r) > 0){
+              #   df_resampled = df_resampled %>%
+              #     left_join(scrf_r, by = "time")
+              # }
               if(nrow(acti_r) > 0){
                 df_resampled = df_resampled %>%
                   left_join(acti_r, by = "time")
@@ -309,16 +321,18 @@ all_marea =
                 left_join(ad, by = "time") %>%
                 left_join(oak, by = "time") %>%
                 left_join(sdt, by = "time") %>%
-                left_join(vs, by = "time")
+                left_join(vs, by = "time") %>%
+                left_join(scssl, by = "time") %>%
+                left_join(scrf, by = "time")
 
-              if(nrow(scssl) > 0){
-                df = df %>%
-                  left_join(scssl, by = "time")
-              }
-              if(nrow(scrf) > 0){
-                df = df %>%
-                  left_join(scrf, by = "time")
-              }
+              # if(nrow(scssl) > 0){
+              #   df = df %>%
+              #     left_join(scssl, by = "time")
+              # }
+              # if(nrow(scrf) > 0){
+              #   df = df %>%
+              #     left_join(scrf, by = "time")
+              # }
               if(nrow(acti) > 0){
                 df = df %>%
                   left_join(acti, by = "time")
@@ -330,16 +344,18 @@ all_marea =
                 left_join(ad_r, by = "time") %>%
                 left_join(oak_r, by = "time") %>%
                 left_join(sdt_r, by = "time") %>%
-                left_join(vs_r, by = "time")
+                left_join(vs_r, by = "time") %>%
+                left_join(scssl_r, by = "time") %>%
+                left_join(scrf_r, by = "time")
 
-              if(nrow(scssl_r) > 0){
-                df_resampled = df_resampled %>%
-                  left_join(scssl_r, by = "time")
-              }
-              if(nrow(scrf_r) > 0){
-                df_resampled = df_resampled %>%
-                  left_join(scrf_r, by = "time")
-              }
+              # if(nrow(scssl_r) > 0){
+              #   df_resampled = df_resampled %>%
+              #     left_join(scssl_r, by = "time")
+              # }
+              # if(nrow(scrf_r) > 0){
+              #   df_resampled = df_resampled %>%
+              #     left_join(scrf_r, by = "time")
+              # }
               if(nrow(acti_r) > 0){
                 df_resampled = df_resampled %>%
                   left_join(acti_r, by = "time")
@@ -368,21 +384,92 @@ rm(all_marea)
 # start here
 
 clem = readRDS(here::here("data/processed/clemson_nested_all.rds")) %>%
-  select(-c(raw_data, resampled_data)) %>%
-  mutate(across(contains("steps_sc"), ~ifelse(is.na(.x), 0, .x)))
+  select(-c(raw_data, resampled_data))
+
+# some of the methods (oak) don't return last second, so check that NAs only come from last row for ea subject, activity
+clem %>%
+  group_by(id_subject, cat_activity) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
+  filter(position != 1)
+
+# then get rid of last row for step comparisons
+# now get rid of last row
+clem = clem %>%
+  group_by(id_subject, cat_activity) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(position != 1) %>%
+  ungroup() %>%
+  select(-position)
+
 
 readr::write_csv(clem, here::here("results/all_algorithms/clemson_step_estimates_1sec.csv.gz"))
 
+
 ox = readRDS(here::here("data/processed/oxwalk_nested_all.rds")) %>%
-  select(-c(raw_data, resampled_data)) %>%
-  mutate(across(contains("steps_sc"), ~ifelse(is.na(.x), 0, .x)))
+  select(-c(raw_data, resampled_data))
 
+# check to make sure NAs are just happening at end
+ox %>%
+  filter(sample_rate == 100) %>%
+  group_by(id_subject) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
+  filter(position != 1)
 
+ox %>%
+  filter(sample_rate == 25) %>%
+  select(-steps_acti) %>%
+  group_by(id_subject) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
+  filter(position != 1 & position != 2)
+
+# now get rid of last row
+oxwalk_100 = ox %>%
+  filter(sample_rate == 100) %>%
+  group_by(id_subject) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(position != 1) %>%
+  ungroup() %>%
+  select(-position)
+
+oxwalk_25 = ox %>%
+  filter(sample_rate == 25) %>%
+  group_by(id_subject) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(position != 1 & position != 2) %>%
+  ungroup() %>%
+  select(-position)
+
+ox = bind_rows(oxwalk_100, oxwalk_25)
 readr::write_csv(ox, here::here("results/all_algorithms/oxwalk_step_estimates_1sec.csv.gz"))
 
 marea = readRDS(here::here("data/processed/marea_nested_all.rds")) %>%
-  select(-c(raw_data, resampled_data)) %>%
-  mutate(across(contains("steps_sc"), ~ifelse(is.na(.x), 0, .x)))
+  select(-c(raw_data, resampled_data))
+
+marea %>%
+  group_by(id_subject, cat_activity) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
+  select(time, steps_truth, steps_oak, steps_oak_30, steps_acti_30, position) %>%
+  filter(position != 1)
+
+# now get rid of last row
+marea = marea %>%
+  group_by(id_subject, cat_activity) %>%
+  arrange(desc(time)) %>%
+  mutate(position = row_number()) %>%
+  filter(position != 1) %>%
+  ungroup() %>%
+  select(-position)
 
 readr::write_csv(marea, here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz"))
 

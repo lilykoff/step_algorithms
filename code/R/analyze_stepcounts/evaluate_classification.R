@@ -4,127 +4,16 @@
 # recall = tp / tp+ fn
 # prec = tp / tp + fp
 library(tidyverse)
-
-# values = c("#990F0FFF","#CC5151FF",
-#            "#99540FFF","#CC8E51FF",
-#            "#6B990FFF", "#A3CC51FF",
-#            "#0F6B99FF", "#51A3CCFF",
-#            "#260F99FF", "#6551CCFF")
-
-# load all results data - one second
-
-
-
 clemson = readr::read_csv(here::here("results/all_algorithms/clemson_step_estimates_1sec.csv.gz"))
-
-
-# check to make sure NAs are just happening at end
-clemson %>%
-  group_by(id_subject, cat_activity) %>%
-  arrange(desc(time)) %>%
-  mutate(position = row_number()) %>%
-  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
-  filter(position != 1)
-
-# now get rid of last row
-clemson = clemson %>%
-  group_by(id_subject, cat_activity) %>%
-  arrange(desc(time)) %>%
-  mutate(position = row_number()) %>%
-  filter(position != 1) %>%
-  ungroup() %>%
-  select(-position)
-
-oxwalk = readr::read_csv(here::here("results/all_algorithms/oxwalk_step_estimates_1sec.csv.gz"))
-
-# for now just use 100 hz
-oxwalk = oxwalk %>%
+# just use 100 hz data from oxwalk for this part
+oxwalk = readr::read_csv(here::here("results/all_algorithms/oxwalk_step_estimates_1sec.csv.gz")) %>%
   filter(sample_rate == 100)
+# remove running from MAREA
+marea = readr::read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz")) %>%
+  filter(grepl("run", cat_activity)==FALSE)
 
 
-# check to make sure NAs are just happening at end
-oxwalk %>%
-  group_by(id_subject) %>%
-  arrange(desc(time)) %>%
-  mutate(position = row_number()) %>%
-  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
-  filter(position != 1)
-
-# now get rid of last row
-oxwalk = oxwalk %>%
-  group_by(id_subject) %>%
-  arrange(desc(time)) %>%
-  mutate(position = row_number()) %>%
-  filter(position != 1) %>%
-  ungroup() %>%
-  select(-position)
-
-marea = readr::read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz"))
-
-# check to make sure NAs are just happening at end
-marea %>%
-  group_by(id_subject, cat_activity) %>%
-  arrange(desc(time)) %>%
-  mutate(position = row_number()) %>%
-  filter(if_any(starts_with("steps"), ~is.na(.x))) %>%
-  select(time, steps_truth, steps_oak, steps_oak_30, steps_acti_30, position) %>%
-  filter(position != 1)
-
-# now get rid of last row
-marea = marea %>%
-  group_by(id_subject, cat_activity) %>%
-  arrange(desc(time)) %>%
-  mutate(position = row_number()) %>%
-  filter(position != 1) %>%
-  ungroup() %>%
-  select(-position)
-
-# generate a table 1 with study descriptions
-marea %>%
-  group_by(cat_activity_large) %>%
-  summarize(subs = length(unique(id_subject)))
-
-marea %>%
-  group_by(cat_activity_large, id_subject) %>%
-  summarize(n = n()/60) %>%
-  group_by(cat_activity_large) %>%
-  summarize(across(n, list(mean = ~ mean(.x),
-                           sd = ~ sd(.x))))
-marea %>%
-  group_by(cat_activity_large, id_subject) %>%
-  summarize(n = sum(steps_truth)) %>%
-  group_by(cat_activity_large) %>%
-  summarize(across(n, list(mean = ~ mean(.x),
-                           sd = ~ sd(.x))))
-
-clemson %>%
-  group_by(cat_activity, id_subject) %>%
-  summarize(n = n()/60) %>%
-  group_by(cat_activity) %>%
-  summarize(across(n, list(mean = ~ mean(.x),
-                           sd = ~ sd(.x))))
-
-
-clemson %>%
-  group_by(cat_activity, id_subject) %>%
-  summarize(n = sum(steps_truth)) %>%
-  group_by(cat_activity) %>%
-  summarize(across(n, list(mean = ~ mean(.x),
-                           sd = ~ sd(.x))))
-oxwalk %>%
-  group_by( id_subject) %>%
-  summarize(n = n()/60) %>%
-  ungroup() %>%
-  summarize(across(n, list(mean = ~ mean(.x),
-                           sd = ~ sd(.x))))
-oxwalk %>%
-  group_by(id_subject) %>%
-  summarize(n = sum(steps_truth)) %>%
-  ungroup() %>%
-  summarize(across(n, list(mean = ~ mean(.x),
-                           sd = ~ sd(.x))))
-
-# for classification analysis, just use on resampled data
+# just use steps estimated from 30hz data for all algorithms
 clemson = clemson %>%
   select(time, id_study, id_subject, cat_activity, ends_with("30"),
          steps_truth) %>%
@@ -137,13 +26,9 @@ oxwalk = oxwalk %>%
 marea = marea %>%
   select(time, id_study, id_subject,  ends_with("30"),
          steps_truth, cat_activity)
-# and get rid of running
-marea = marea %>%
-  filter(grepl("run", cat_activity)==FALSE)
 
-# walking recognition table
 
-# supplemental classification table
+# supplemental classification table, wide
 oxwalk %>%
   mutate(cat_activity = "ox") %>%
   bind_rows(clemson) %>%
@@ -159,6 +44,7 @@ oxwalk %>%
                   (.x == 0 & steps_truth == 0) ~ "tn",
                   (.x == 0 & steps_truth > 0) ~ "fn"
                 )))) %>%
+  ungroup() %>%
   group_by(id_subject, cat_activity) %>%
   # summarize tp, fp, tn, fn by id and activity
   summarize(across(ends_with("type"),
@@ -177,7 +63,7 @@ oxwalk %>%
          prec = tp / (tp + fp),
          f1 = tp/(tp + (0.5*(fp + fn))))  %>%
   ungroup() %>%
-  # get means
+  # get means by algorithm and activity
   group_by(algorithm, cat_activity) %>%
   summarize(across(c(recall, prec, f1),
                    list(mean = ~mean(.x, na.rm = TRUE),
@@ -201,7 +87,7 @@ oxwalk %>%
                                  "Precision" = 5, "F1 Score" = 5)) %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
-# longer table format
+# supplemental classification table, long
 oxwalk %>%
   mutate(cat_activity = "ox") %>%
   bind_rows(clemson) %>%
@@ -248,7 +134,7 @@ oxwalk %>%
   pivot_longer(recall:f1) %>%
   pivot_wider(names_from = cat_activity, values_from = value) %>%
   ungroup() %>%
-  select(name, algorithm,marea,  walk_regular, walk_semiregular, walk_irregular, ox) %>%
+  select(name, algorithm, marea,  walk_regular, walk_semiregular, walk_irregular, ox) %>%
   arrange(name) %>%
   kableExtra::kable(align = "llll", booktabs = TRUE,  format = "latex", col.names =
                       c("Metric", "Algorithm", rep(c("Regular", "Regular", "Semiregular", "Irregular", "Free-Living"), 1)))  %>%
@@ -353,7 +239,7 @@ tab_individual %>%
   select(algorithm, starts_with("recall"), starts_with("precision"), starts_with("f1")) %>%
   mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense")) %>%
   arrange(algorithm) %>%
-  kableExtra::kable(align = "llll", booktabs = TRUE,  col.names =
+  kableExtra::kable(align = "llll", booktabs = TRUE,  format = "latex", col.names =
                       c("Algorithm", "Clemson", "MAREA", "Oxwalk", "Overall",
                         "Clemson", "Oxwalk", "Overall",
                         "Clemson", "MAREA", "Oxwalk", "Overall")) %>%
@@ -527,92 +413,191 @@ recog_stats %>%
   mutate(id_study = factor(id_study, levels = c("clemson", "marea", "oxwalk", "overall"))) %>%
   ggplot(aes(x = factor(algorithm, levels = level_order), y = value, col = algorithm))+
   geom_boxplot(outlier.shape = NA, position = position_dodge())+
-  geom_jitter(width=.1, alpha=.2)+
+  geom_jitter(width=.1, alpha=.5)+
   facet_grid(name ~ id_study,
              labeller = labeller(name = labs,
                                  id_study = labs2)) +
   scale_color_brewer(palette  = "Dark2",name = "",
                      labels = c("ActiLife", "ADEPT", "Oak","Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense"))+
   theme_bw()+
-  theme(legend.position = c(.475, .6),
+  theme(legend.position = c(.49, .6),
         legend.justification = c("right", "top"),
         legend.box.just = "right",
         legend.margin = margin(1, 1, 1, 1),
-        axis.text.x = element_blank())+
+        axis.text.x = element_blank(),
+        strip.text = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.text = element_text(size = 10))+
   labs(x = "", y = "")+
   guides(colour = guide_legend(nrow = 4))
 
-# # overall panel
-# overall =
-#   oxwalk %>%
-#   bind_rows(clemson) %>%
-#   bind_rows(marea) %>%
-#   mutate(id_study = factor(id_study,
-#                            levels = c("clemson", "marea", "oxwalk"))) %>%
-#   # classify each second as true positive/neg or false positive/neg
-#   mutate(across(starts_with("steps") & !contains("truth"),
-#                 list(type = ~ case_when(
-#                   (.x > 0 & steps_truth > 0) ~ "tp",
-#                   (.x > 0 & steps_truth == 0) ~ "fp",
-#                   (.x == 0 & steps_truth == 0) ~ "tn",
-#                   (.x == 0 & steps_truth > 0) ~ "fn"
-#                 )))) %>%
-#   group_by(id_subject, id_study) %>%
-#   # summarize tp, fp, tn, fn by id and activity
-#   summarize(across(ends_with("type"),
-#                    list(tp = ~sum(.x == "tp"),
-#                         tn = ~sum(.x == "tn"),
-#                         fp = ~sum(.x == "fp"),
-#                         fn = ~sum(.x == "fn")))) %>%
-#   pivot_longer(cols  = starts_with("steps"))  %>%
-#   mutate(metric = sub(".*type\\_", "", name),
-#          algorithm = sub("\\_type\\_.*", "", name))  %>%
-#   pivot_wider(names_from = metric, values_from = value,
-#               id_cols = c(id_subject, algorithm, id_study)) %>%
-#   ungroup() %>%
-#   rowwise() %>%
-#   mutate(recall = tp /(tp + fn),
-#          prec = tp / (tp + fp),
-#          f1 = tp/(tp + (0.5*(fp + fn))))  %>%
-#   ungroup() %>%
-#   pivot_longer(cols = recall:f1) %>%
-#   mutate(id_study = "overall")
-#   ggplot(aes(x = factor(algorithm, levels = level_order), y = value, col = algorithm))+
-#   geom_boxplot(outlier.shape = NA, position = position_dodge())+
-#   geom_jitter(width=.1, alpha=.2)+
-#   facet_grid(name ~ .,
-#              labeller = labeller(name = labs)) +
-#   scale_color_brewer(palette  = "Dark2",name = "",
-#                      labels = c("ActiLife", "ADEPT", "Oak","Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense"))+
-#   theme_bw()+
-#   theme(legend.position = "bottom",
-#         axis.text.x = element_blank())+
-#   labs(x = "", y = "")+
-#   guides(colour = guide_legend(nrow = 1))
+
+recog_stats_tmp =
+  recog_stats %>%
+  select(recall, prec, f1, id_subject, id_study, algorithm)
+# create overall df
+recog_stats_test =
+  recog_stats_tmp %>% mutate(id_study = "overall") %>%
+  bind_rows(recog_stats %>%
+              select(recall, prec, f1, id_subject, id_study, algorithm))
+
+expand.grid.unique <- function(x, y, include.equals=FALSE)
+{
+  x <- unique(x)
+
+  y <- unique(y)
+
+  g <- function(i)
+  {
+    z <- setdiff(y, x[seq_len(i-include.equals)])
+
+    if(length(z)) cbind(x[i], z, deparse.level=0)
+  }
+
+  do.call(rbind, lapply(seq_along(x), g))
+}
+# significance testing
+pairs = expand.grid.unique(x = c("acti", "adept", "oak", "scrf", "scssl", "sdt", "vs"),
+                           y =  c("acti", "adept", "oak", "scrf", "scssl", "sdt", "vs")) %>%
+  as_tibble() %>%
+  magrittr::set_colnames(c("var1", "var2")) %>%
+  mutate(var1 = paste0("steps_", var1, "_30"),
+         var2 = paste0("steps_", var2, "_30")) %>%
+  mutate(z = paste(var1, var2))
+
+key = recog_stats_test %>%
+  select(algorithm, id_study, id_subject, f1) %>%
+  group_by(algorithm, id_study) %>%
+  nest(data = c(id_subject, f1))
+
+expanded = expand_grid(pair = pairs$z,id_study= unique(key$id_study)) %>%
+  rowwise() %>%
+  mutate(pair1 = str_split(pair, " ")[[1]][1],
+         pair2 = str_split(pair, " ")[[1]][2])
+
+t_test_res =
+  expanded %>%
+  select(-pair) %>%
+  left_join(key, by = c("pair1" ="algorithm", "id_study" = "id_study")) %>%
+  rename(f1_pair1 = data) %>%
+  left_join(key, by = c("pair2" ="algorithm", "id_study" = "id_study")) %>%
+  rename(f1_pair2 = data) %>%
+  unnest() %>%
+  group_by(id_study, pair1, pair2) %>%
+  nest(data = c(id_subject, id_subject1, f1, f11)) %>%
+  mutate(pval = map(data, ~ t.test(.x$f1, .x$f11, data = .x, paired = TRUE)$p.value)) %>%
+  unnest(pval) %>%
+  mutate(pval_char =as.character(signif(pval,digits=2)))
+
+
+# p value plot
+f1 = t_test_res %>%
+  ggplot(aes(x = pair1, y = pair2, fill = pval, label = pval_char))+
+  geom_tile()+
+  geom_text(parse = TRUE)+
+  facet_wrap(.~id_study)+
+  theme_bw()+
+  binned_scale(aesthetics = "fill",
+               scale_name = "stepsn",
+               palette = function(x) c("lightgreen", "lightblue", "white", "red"),
+               breaks = c(0,0.001, 0.01, 0.05, 1),
+               limits = c(0, 1),
+               show.limits = TRUE,
+               guide = "colorsteps"
+  ) +
+  scale_x_discrete(labels = c("actilife", "adept", "oak", "scrf", "scssl", "sdt")) +
+  scale_y_discrete(labels = c( "adept", "oak", "scrf","scssl", "sdt", "vs"))+
+  labs(title = "p values for f1 score")
+
+
+key = recog_stats_test %>%
+  select(algorithm, id_study, id_subject, recall) %>%
+  group_by(algorithm, id_study) %>%
+  nest(data = c(id_subject, recall))
+
+expanded = expand_grid(pair = pairs$z,id_study= unique(key$id_study)) %>%
+  rowwise() %>%
+  mutate(pair1 = str_split(pair, " ")[[1]][1],
+         pair2 = str_split(pair, " ")[[1]][2])
+
+t_test_res =
+  expanded %>%
+  select(-pair) %>%
+  left_join(key, by = c("pair1" ="algorithm", "id_study" = "id_study")) %>%
+  rename(recall_pair1 = data) %>%
+  left_join(key, by = c("pair2" ="algorithm", "id_study" = "id_study")) %>%
+  rename(recall_pair2 = data) %>%
+  unnest() %>%
+  group_by(id_study, pair1, pair2) %>%
+  nest(data = c(id_subject, id_subject1, recall, recall1)) %>%
+  mutate(pval = map(data, ~ t.test(.x$recall, .x$recall1, data = .x, paired = TRUE)$p.value)) %>%
+  unnest(pval) %>%
+  mutate(pval_char =as.character(signif(pval,digits=2)))
+
+
+# p value plot
+recall = t_test_res %>%
+  ggplot(aes(x = pair1, y = pair2, fill = pval, label = pval_char))+
+  geom_tile()+
+  geom_text(parse = TRUE)+
+  facet_wrap(.~id_study)+
+  theme_bw()+
+  binned_scale(aesthetics = "fill",
+               scale_name = "stepsn",
+               palette = function(x) c("lightgreen", "lightblue", "white", "red"),
+               breaks = c(0, 0.001, 0.01, 0.05, 1),
+               limits = c(0, 1),
+               show.limits = TRUE,
+               guide = "colorsteps"
+  ) +
+  scale_x_discrete(labels = c("actilife", "adept", "oak", "scrf", "scssl", "sdt")) +
+  scale_y_discrete(labels = c( "adept", "oak", "scrf","scssl", "sdt", "vs"))+
+  labs(title = "p values for recall score")
 
 
 
+key = recog_stats_test %>%
+  select(algorithm, id_study, id_subject, prec) %>%
+  group_by(algorithm, id_study) %>%
+  nest(data = c(id_subject, prec))
+
+expanded = expand_grid(pair = pairs$z,id_study= unique(key$id_study)) %>%
+  rowwise() %>%
+  mutate(pair1 = str_split(pair, " ")[[1]][1],
+         pair2 = str_split(pair, " ")[[1]][2])
+
+t_test_res =
+  expanded %>%
+  select(-pair) %>%
+  left_join(key, by = c("pair1" ="algorithm", "id_study" = "id_study")) %>%
+  rename(prec_pair1 = data) %>%
+  left_join(key, by = c("pair2" ="algorithm", "id_study" = "id_study")) %>%
+  rename(prec_pair2 = data) %>%
+  unnest() %>%
+  group_by(id_study, pair1, pair2) %>%
+  nest(data = c(id_subject, id_subject1, prec, prec1)) %>%
+  mutate(pval = map(data, ~ t.test(.x$prec, .x$prec1, data = .x, paired = TRUE)$p.value)) %>%
+  unnest(pval) %>%
+  mutate(pval_char =as.character(signif(pval,digits=2)))
 
 
+# p value plot
+prec = t_test_res %>%
+  ggplot(aes(x = pair1, y = pair2, fill = pval, label = pval_char))+
+  geom_tile()+
+  geom_text(parse = TRUE)+
+  facet_wrap(.~id_study)+
+  theme_bw()+
+  binned_scale(aesthetics = "fill",
+               scale_name = "stepsn",
+               palette = function(x) c("lightgreen", "lightblue", "white", "red"),
+               breaks = c(0, 0.001, .01, 0.05, 1),
+               limits = c(0, 1),
+               show.limits = TRUE,
+               guide = "colorsteps"
+  ) +
+  scale_x_discrete(labels = c("actilife", "adept", "oak", "scrf", "scssl", "sdt")) +
+  scale_y_discrete(labels = c( "adept", "oak", "scrf","scssl", "sdt", "vs"))+
+  labs(title = "p values for prec score")
 
-
-
-# old stuff
-my_comparisons = list(c("acti", "adept"), c("acti", "oak"),c("acti", "sdt"), c("acti", "vs"),
-                      c("adept", "oak"),c("adept", "sdt"), c("adept", "vs"),
-                      c("oak", "sdt"), c("oak", "vs"),
-                     c("vs", "sdt"))
-
-# plt2 +
-#   ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test", paired = TRUE,
-#                              label= "p.signif")
-# plt3 +
-#   ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test", paired = TRUE,
-#                              label= "p.signif")
-
-plt3 +
-  ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test", paired = TRUE,
-                             label= "p.format")
-
-# full latex table, way # 1 (averaging across indiv)
-
+cowplot::plot_grid(f1, prec, recall)

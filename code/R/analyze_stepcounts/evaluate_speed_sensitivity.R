@@ -1,26 +1,27 @@
 library(tidyverse)
 library(ggpmisc)
 
-marea_nested  = readRDS("~/Documents/step_algorithms/data/processed/marea_nested_all.rds")
-marea_10sec = read_csv(here::here("results/all_algorithms/marea_step_estimates_10sec.csv.gz"))
+# marea_nested  = readRDS("~/Documents/step_algorithms/data/processed/marea_nested_all.rds")
+marea = read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz"))
 
 
 # speed vs bias figure
 # bias is estimated per minute
-marea_10sec %>%
+labs = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense")
+
+names(labs) = c("steps_acti", "steps_adept", "steps_oak",  "steps_scrf", "steps_scssl","steps_sdt", "steps_vs")
+
+marea %>%
   filter(cat_activity_large == "treadmill_walkrun") %>%
-  group_by(id_subject, time_10, cat_activity_large, speed) %>%
-  summarize(across(c(n_seconds, starts_with("steps")), ~sum(.x))) %>% # sum "boundary" seconds
-  ungroup() %>%
-  filter(n_seconds == 10) %>%
+  group_by(id_subject, cat_activity_large, speed) %>%
+  mutate(n_sec = n()) %>%
   select(contains("30") | contains("truth"), id_subject,
-         speed, time_10) %>%
-  group_by(id_subject, speed)  %>%
-  mutate(n = n()) %>%
-  group_by(id_subject, speed, n) %>%
+         speed, n_sec) %>%
+  group_by(id_subject, speed, n_sec) %>%
   summarize(across(starts_with("steps"), ~sum(.x))) %>%
+  ungroup() %>%
   mutate(across(starts_with("steps")& !contains("truth"),
-                list(bias = ~(steps_truth - .x) * (n*6/60)))) %>% # adjust to get bias per minute so eceryone on same scale
+                list(bias = ~(steps_truth - .x) * (n_sec/60)))) %>% # adjust to get bias per minute so eceryone on same scale
   pivot_longer(cols = ends_with("bias")) %>%
   mutate(algorithm = sub("\\_30.*", "", name),
          speed = as.numeric(sub("km/hr.*", "", speed))) %>%
@@ -34,23 +35,20 @@ marea_10sec %>%
   labs(x = "Speed (km/hr)", y = "Estimated Bias per Minute")+
   scale_x_continuous(breaks=seq(4,8,0.4))+
   geom_hline(aes(yintercept = 0))+
-  scale_color_manual(values = c("#1B9E77FF", "#D95F02FF", "#7570B3FF","#A6761DFF", "#E7298AFF", "#66A61EFF",  "#E6AB02FF"))
+  scale_color_brewer(palette = "Dark2")
 
 # with shapes for each activity
-marea_10sec %>%
+marea %>%
   filter(cat_activity_large == "treadmill_walkrun") %>%
-  group_by(id_subject, time_10, cat_activity_large, cat_activity, speed) %>%
-  summarize(across(c(n_seconds, starts_with("steps")), ~sum(.x))) %>% # sum "boundary" periods
-  ungroup() %>%
-  filter(n_seconds == 10) %>%
+  group_by(id_subject, cat_activity_large, cat_activity, speed) %>%
+  mutate(n_sec = n()) %>%
   select(contains("30") | contains("truth"), id_subject,
-         speed, time_10, cat_activity) %>%
-  group_by(id_subject, speed, cat_activity)  %>%
-  mutate(n = n()) %>%
-  group_by(id_subject, speed, n, cat_activity) %>%
+         speed, n_sec, cat_activity) %>%
+  group_by(id_subject, speed, n_sec, cat_activity) %>%
   summarize(across(starts_with("steps"), ~sum(.x))) %>%
+  ungroup() %>%
   mutate(across(starts_with("steps")& !contains("truth"),
-                list(bias = ~(steps_truth - .x) * (n*6/60)))) %>% # adjust to get bias per minute so eceryone on same scale
+                list(bias = ~(steps_truth - .x) * (n_sec/60)))) %>% # adjust to get bias per minute so eceryone on same scale
   pivot_longer(cols = ends_with("bias")) %>%
   mutate(algorithm = sub("\\_30.*", "", name),
          speed = as.numeric(sub("km/hr.*", "", speed))) %>%
@@ -64,52 +62,13 @@ marea_10sec %>%
   scale_x_continuous(breaks=seq(4,8,0.8))+
   scale_shape_manual(name = "", values = c(17, 16), labels = c("Run", "Walk"))+
   geom_hline(aes(yintercept = 0))+
-  scale_color_manual(values = c("#1B9E77FF", "#D95F02FF", "#7570B3FF","#A6761DFF", "#E7298AFF", "#66A61EFF",  "#E6AB02FF"),
-                     guide = "none")+
-  theme(legend.position = "bottom")
+  scale_color_brewer(palette = "Dark2", guide = "none")+
+  theme(legend.position = c(.09, .2),
+        legend.title = element_blank(),
+        legend.margin = margin(1,1,1,1),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10))
 
-
-
-# one point for every 10s
-indoor = marea_10sec %>%
-  filter(grepl("indoor_walkrun", cat_activity_large)) %>%
-  pivot_longer(cols = starts_with("steps") & contains("30")) %>%
-  mutate(algorithm = sub("\\_30.*", "", name))
-outdoor = marea_10sec %>%
-  filter(grepl("outdoor_walkrun", cat_activity_large)) %>%
-  pivot_longer(cols = starts_with("steps") & contains("30")) %>%
-  mutate(algorithm = sub("\\_30.*", "", name))
-
-act_labs = c("Indoor Run", "Indoor Walk", "Outdoor Run", "Outdoor Walk")
-names(act_labs) = c("indoor_run", "indoor_walk", "outdoor_run", "outdoor_walk")
-bind_rows(indoor, outdoor) %>%
-  ggplot(aes(x = steps_truth, y = value))+
-  geom_point(alpha = .5, aes(col = algorithm))+
-  facet_grid(cat_activity ~ algorithm, labeller = labeller(algorithm = labs,
-                                                           cat_activity = act_labs))+
-  geom_abline(intercept = 0)+
-  theme_bw()+
-  coord_equal()+
-  theme(legend.position = "none")+
-  labs(x = "True Steps", y = "Predicted Steps")+
-  scale_color_manual(values = c("#1B9E77FF", "#D95F02FF", "#7570B3FF","#A6761DFF", "#E7298AFF", "#66A61EFF",  "#E6AB02FF"),
-                      guide = "none")
-
-
-cowplot::plot_grid(indoor, outdoor, nrow = 2)
-
-# look at slope
-# marea_10sec %>%
-#   filter(grepl("treadmill_slopewalk", cat_activity_large)) %>%
-#   mutate(cat_slope = factor(slope, levels = c("0 deg", "5 deg", "10 deg", "15 deg"))) %>%
-#   pivot_longer(cols = starts_with("steps") & contains("30")) %>%
-#   mutate(algorithm = sub("\\_30.*", "", name)) %>%
-#   ggplot(aes(x = steps_truth, y = value))+
-#   geom_point(alpha = .5, aes(col = cat_slope))+
-#   geom_abline(intercept = 0)+
-#   facet_grid(algorithm  ~ cat_slope)+
-#   theme_bw()+
-#   coord_equal()+
-#   theme(legend.position = "none")+
-#   labs(x = "True Steps", y = "Predicted Steps")
 
