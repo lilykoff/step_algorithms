@@ -22,58 +22,33 @@ marea = marea %>%
   select(time, id_study, id_subject,  ends_with("30"),
          steps_truth, cat_activity)
 
+step_df =
+  readRDS(here::here("results", "all_algorithms", "step_stats_bysubject.rds")) %>%
+  filter(cat_activity != "oxwalk25" &
+         grepl("30", algorithm))
 
 # manuscript table
 tab_individual =
-  oxwalk %>%
-  bind_rows(clemson) %>%
-  bind_rows(marea) %>%
-  mutate(id_study = factor(id_study, levels = c("clemson", "marea", "oxwalk"))) %>%
-  group_by(id_subject, id_study) %>%
-  summarize(across(starts_with("steps"),
-                   ~sum(.x, na.rm = TRUE))) %>%
-  ungroup() %>%
-  rowwise() %>%
-  mutate(across(starts_with("steps") & !contains("truth"),
-                list(ape = ~ abs((steps_truth - .x)/steps_truth*100),
-                     bias = ~ .x - steps_truth))) %>%
-  select(id_subject, id_study, contains("bias"), contains("ape")) %>%
-  pivot_longer(cols  = starts_with("steps")) %>%
-  mutate(metric = sub(".*30\\_", "", name),
-         algorithm = sub(".*steps_(.+)\\_30.*", "\\1", name))  %>%
-  select(-name) %>%
-  group_by(metric, algorithm, id_study) %>%
+  step_df %>%
+  filter(cat_activity %in% c("clemson_overall", "oxwalk100", "marea")) %>%
+  pivot_longer(cols = c("bias", "ape"), names_to = "metric") %>%
+  group_by(metric, algorithm, cat_activity) %>%
   summarize(across(value,
-                   list(mean = ~ mean(.x, na.rm = TRUE),
-                        sd = ~ sd(.x, na.rm = TRUE)))) %>%
+                   list(mean = ~ mean(.x),
+                        sd = ~ sd(.x)))) %>%
   rowwise() %>%
   mutate(mean = case_when(
     metric == "bias" ~  paste0(sprintf(value_mean, fmt = "%.0f"), " (", sprintf(value_sd, fmt = "%.0f"), ")"),
     metric == "ape" ~ paste0(sprintf(value_mean, fmt = "%#.1f"), " (", sprintf(value_sd, fmt = "%.0f"), ")"))
   ) %>%
-  select(algorithm, id_study, mean, metric) %>%
-  pivot_wider(names_from = c(id_study,metric), values_from = mean) %>%
-  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense")) %>%
-  arrange(algorithm)
+  select(algorithm, cat_activity, mean, metric) %>%
+  pivot_wider(names_from = c(cat_activity,metric), values_from = mean) %>%
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense"))
 
 tab_overall =
-  oxwalk %>%
-  bind_rows(clemson) %>%
-  bind_rows(marea) %>%
-  mutate(id_study = factor(id_study, levels = c("clemson", "marea", "oxwalk"))) %>%
-  group_by(id_subject, id_study) %>%
-  summarize(across(starts_with("steps"),
-                   ~sum(.x, na.rm = TRUE))) %>%
-  ungroup() %>%
-  rowwise() %>%
-  mutate(across(starts_with("steps") & !contains("truth"),
-                list(ape = ~ abs((steps_truth - .x)/steps_truth*100),
-                     bias = ~ .x - steps_truth))) %>%
-  select(id_subject, id_study, contains("bias"), contains("ape")) %>%
-  pivot_longer(cols  = starts_with("steps")) %>%
-  mutate(metric = sub(".*30\\_", "", name),
-         algorithm = sub(".*steps_(.+)\\_30.*", "\\1", name))  %>%
-  select(-name) %>%
+  step_df %>%
+  filter(cat_activity %in% c("clemson_overall", "oxwalk100", "marea")) %>%
+  pivot_longer(cols = c("bias", "ape"), names_to = "metric") %>%
   group_by(metric, algorithm) %>%
   summarize(across(value,
                    list(mean = ~ mean(.x, na.rm = TRUE),
@@ -86,8 +61,7 @@ tab_overall =
   select(algorithm, mean, metric) %>%
   mutate(name = "overall") %>%
   pivot_wider(names_from = c(name, metric), values_from = mean) %>%
-  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense")) %>%
-  arrange(algorithm)
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense"))
 
 
 tab_individual %>%
@@ -99,31 +73,13 @@ tab_individual %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
 # supplemental table (long)
-oxwalk %>%
-  mutate(cat_activity = "oxwalk") %>%
-  bind_rows(clemson %>% mutate(id_study = "clemson")) %>%
-  bind_rows(marea %>% mutate(cat_activity = "marea",
-                               id_study = "marea")) %>%
-  mutate(cat_activity = factor(cat_activity, levels = c("walk_regular",
-                                                        "walk_semiregular",
-                                                        "walk_irregular", "marea", "oxwalk"))) %>%
-  group_by(id_subject, cat_activity) %>%
-  summarize(across(starts_with("steps"),
-                   ~sum(.x, na.rm = TRUE))) %>%
-  ungroup() %>%
-  rowwise() %>%
-  mutate(across(starts_with("steps") & !contains("truth"),
-                list(ape = ~ abs((steps_truth - .x)/steps_truth),
-                     bias = ~ .x - steps_truth))) %>%
-  select(id_subject, cat_activity, contains("bias"), contains("ape")) %>%
-  pivot_longer(cols  = starts_with("steps")) %>%
-  mutate(metric = sub(".*30\\_", "", name),
-         algorithm = sub(".*steps_(.+)\\_30.*", "\\1", name))  %>%
-  select(-name) %>%
+step_df %>%
+  filter(cat_activity != "clemson_overall") %>%
+  pivot_longer(cols = c("bias", "ape"), names_to = "metric") %>%
   group_by(metric, algorithm, cat_activity) %>%
   summarize(across(value,
-                   list(mean = ~ mean(.x, na.rm = TRUE),
-                        sd = ~ sd(.x, na.rm = TRUE)))) %>%
+                   list(mean = ~ mean(.x),
+                        sd = ~ sd(.x)))) %>%
   rowwise() %>%
   mutate(mean = case_when(
     metric == "bias" ~  paste0(sprintf(value_mean, fmt = "%.0f"), " (", sprintf(value_sd, fmt = "%.0f"), ")"),
@@ -132,7 +88,7 @@ oxwalk %>%
   select(algorithm, cat_activity, mean, metric) %>%
   pivot_wider(names_from = cat_activity, values_from = mean)  %>%
   ungroup() %>%
-  select(metric, algorithm, marea, walk_regular, walk_semiregular, walk_irregular, oxwalk) %>%
+  select(metric, algorithm, marea, clemson_walk_regular, clemson_walk_semiregular, clemson_walk_irregular, oxwalk100) %>%
   kableExtra::kable(align = "llll", booktabs = TRUE, format = "latex",  col.names =
                       c("Metric", "Algorithm", rep(c("Regular", "Regular", "Semiregular", "Irregular", "Free-Living"), 1)))  %>%
   kableExtra::collapse_rows(columns = 1:2, valign = "top") %>%
@@ -142,19 +98,23 @@ oxwalk %>%
 
 # figures
 
-
-
 # PLOTS truth vs predicted
+total_steps = readRDS(here::here("results", "all_algorithms", "total_steps_bysubject.rds"))
 labs = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense")
 
 names(labs) = c("acti", "adept", "oak",  "scrf", "scssl","sdt", "vs")
 
-
-clem2 = clemson %>%
-  group_by(id_subject, cat_activity) %>%
-  summarize(across(starts_with("steps"), ~sum(.x, na.rm = TRUE))) %>%
-  pivot_longer(cols = c(starts_with("steps") & !contains("truth"))) %>%
-  mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name)) %>%
+clem2 =
+  total_steps %>%
+  filter(cat_activity != "clemson_overall" & id_study == "clemson") %>%
+  pivot_wider(names_from = algorithm, values_from = total_steps) %>%
+  pivot_longer(cols = c(steps_adept_30:steps_acti_30)) %>%
+  select(id_subject, cat_activity, steps_truth, name, value) %>%
+  mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name),
+         cat_activity = factor(cat_activity,
+                               levels = c("clemson_walk_regular",
+                                          "clemson_walk_semiregular",
+                                          "clemson_walk_irregular"))) %>%
   ggplot(aes(x = steps_truth, y = value, col = method, shape = cat_activity))+
   geom_point(size = 2) +
   facet_grid(.~method,labeller = labeller(method = labs))+
@@ -178,10 +138,12 @@ clem2 = clemson %>%
   guides(shape = guide_legend(nrow = 1))
 
 
-ox = oxwalk %>%
-  group_by(id_subject) %>%
-  summarize(across(starts_with("steps"), ~sum(.x, na.rm = TRUE))) %>%
-  pivot_longer(cols = c(starts_with("steps") & !contains("truth"))) %>%
+ox =
+  total_steps %>%
+  filter(id_study == "oxwalk") %>%
+  pivot_wider(names_from = algorithm, values_from = total_steps) %>%
+  pivot_longer(cols = c(steps_adept_30:steps_acti_30)) %>%
+  select(id_subject, cat_activity, steps_truth, name, value) %>%
   mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name)) %>%
   ggplot(aes(x = steps_truth, y = value, col = method))+
   geom_point(size = 2) +
@@ -201,10 +163,12 @@ ox = oxwalk %>%
 
 
 
-mar2 = marea %>%
-  group_by(id_subject, cat_activity) %>%
-  summarize(across(starts_with("steps"), ~sum(.x, na.rm = TRUE))) %>%
-  pivot_longer(cols = c(starts_with("steps") & !contains("truth"))) %>%
+mar2 =
+  total_steps %>%
+  filter(id_study == "marea") %>%
+  pivot_wider(names_from = algorithm, values_from = total_steps) %>%
+  pivot_longer(cols = c(steps_adept_30:steps_acti_30)) %>%
+  select(id_subject, cat_activity, steps_truth, name, value) %>%
   mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name),
          activity = case_when(
            cat_activity %in% c("indoor_walk", "outdoor_walk") ~ "Walk indoor/outdoor",
@@ -236,31 +200,17 @@ cowplot::plot_grid(clem2, mar2, ox, nrow = 3)
 
 # p values
 stats =
-  oxwalk %>%
-  bind_rows(clemson) %>%
-  bind_rows(marea) %>%
-  mutate(id_study = factor(id_study, levels = c("clemson", "marea", "oxwalk"))) %>%
-  group_by(id_subject, id_study) %>%
-  summarize(across(starts_with("steps"),
-                   ~sum(.x, na.rm = TRUE))) %>%
-  ungroup() %>%
-  rowwise() %>%
-  mutate(across(starts_with("steps") & !contains("truth"),
-                list(ape = ~ abs((steps_truth - .x)/steps_truth*100),
-                     bias = ~ .x - steps_truth))) %>%
-  select(id_subject, id_study, contains("bias"), contains("ape")) %>%
-  pivot_longer(cols  = starts_with("steps")) %>%
-  mutate(metric = sub(".*30\\_", "", name),
-         algorithm = sub(".*steps_(.+)\\_30.*", "\\1", name))  %>%
-  select(-name) %>%
-  pivot_wider(names_from = "metric", values_from = value)
+  step_df %>%
+  filter(cat_activity %in% c("oxwalk100", "marea", "clemson_overall") &
+           grepl("30", algorithm)) %>%
+  select(bias, ape, id_subject, id_study = cat_activity, algorithm)
+
 
 overall_stats = stats %>% mutate(id_study = "overall")
 
 # create overall df
 recog_stats_test =
- bind_rows(overall_stats, stats) %>%
-  mutate(algorithm = paste0("steps_", algorithm, "_30"))
+ bind_rows(overall_stats, stats)
 
 expand.grid.unique <- function(x, y, include.equals=FALSE)
 {

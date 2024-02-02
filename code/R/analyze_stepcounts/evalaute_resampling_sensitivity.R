@@ -77,7 +77,6 @@ oxwalk %>%
             aes(x = 2500, y = 5000,
             label = paste("\u03c1 =", formatC(signif(value, digits=3), digits=2, format="fg", flag="#"))),
             inherit.aes = FALSE)
-# formatC(signif(value, digits=3), digits=2, format="fg", flag="#"
 
 # correlation table, between total steps estimated for ea person
 cor_df_separate =
