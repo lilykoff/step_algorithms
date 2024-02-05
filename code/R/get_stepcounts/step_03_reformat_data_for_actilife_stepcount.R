@@ -43,11 +43,11 @@ ox_files =
   )
 
 if(!file.exists(here::here("data", "actilife", "clemson"))){
-  dir.create(here::here("data", "actilife", "clemson"))
+  dir.create(here::here("data", "actilife", "clemson"), recursive = TRUE)
 }
 
 if(!file.exists(here::here("data", "stepcount", "clemson"))){
-  dir.create(here::here("data", "stepcount", "clemson"))
+  dir.create(here::here("data", "stepcount", "clemson"), recursive = TRUE)
 }
 map(
   .x = clemson_files,
@@ -72,11 +72,11 @@ map(
 )
 
 if(!file.exists(here::here("data", "actilife", "marea"))){
-  dir.create(here::here("data", "actilife", "marea"))
+  dir.create(here::here("data", "actilife", "marea"), recursive = TRUE)
 }
 
 if(!file.exists(here::here("data", "stepcount", "marea"))){
-  dir.create(here::here("data", "stepcount", "marea"))
+  dir.create(here::here("data", "stepcount", "marea"), recursive = TRUE)
 }
 
 map(
@@ -102,12 +102,13 @@ map(
 )
 
 if(!file.exists(here::here("data", "actilife", "oxwalk"))){
-  dir.create(here::here("data", "actilife", "oxwalk"))
+  dir.create(here::here("data", "actilife", "oxwalk"), recursive = TRUE)
 }
 
 if(!file.exists(here::here("data", "stepcount", "oxwalk"))){
-  dir.create(here::here("data", "stepcount", "oxwalk"))
+  dir.create(here::here("data", "stepcount", "oxwalk"), recursive = TRUE)
 }
+
 map(
   .x = ox_files,
   .f = function(filename) {

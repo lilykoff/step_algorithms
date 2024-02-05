@@ -300,6 +300,7 @@ map(.x = marea_csvs,
 
 rm(list = ls())
 
+# would only need this part if we do R stepcount version
 # process results from actilife into same as other algorithms
 library(tidyverse)
 options(digits.secs = 3)
