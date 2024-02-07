@@ -1,4 +1,4 @@
-# devtools::install_github("https://github.com/muschellij2/walking")
+devtools::install_github("https://github.com/muschellij2/walking")
 
 # set adept templates
 all_wrist_templates = adeptdata::stride_template$left_wrist

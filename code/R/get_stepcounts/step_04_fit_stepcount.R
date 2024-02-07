@@ -130,22 +130,108 @@ files_raw = list.files(here::here("data", "stepcount", "marea"),
                         full.names =  TRUE,
                         recursive = TRUE,
                         pattern = "raw")
+if(length(files_raw)> 0 && length(files_resampled) > 0){
+  if (stepcount::stepcount_check()) {
+    ssl_res = stepcount::stepcount(file = files_resampled,
+                                   model_type = "ssl",
+                                   sample_rate =  30)
+    rf_res = stepcount::stepcount(file = files_resampled,
+                                  model_type = "rf",
+                                  sample_rate =  30)
 
-if (stepcount::stepcount_check()) {
-  ssl_res = stepcount::stepcount(file = files_resampled,
-                                 model_type = "ssl",
-                                 sample_rate =  30)
-  rf_res = stepcount::stepcount(file = files_resampled,
-                                model_type = "rf",
-                                sample_rate =  30)
+    ssl_res_raw = stepcount::stepcount(file = files_raw,
+                                       model_type = "ssl",
+                                       sample_rate =  128)
+    rf_res_raw = stepcount::stepcount(file = files_raw,
+                                      model_type = "rf",
+                                      sample_rate =  128)
+  }
 
-  ssl_res_raw = stepcount::stepcount(file = files_raw,
-                                     model_type = "ssl",
-                                     sample_rate =  128)
-  rf_res_raw = stepcount::stepcount(file = files_raw,
-                                    model_type = "rf",
-                                    sample_rate =  128)
+  map(c(rf_res, rf_res_raw),
+      .f = function(x){
+        fname = x$info$Filename
+        df_times = x$steps
+        step_df = x$step_times %>%
+          mutate(time = as.POSIXct(time))
+        # read in total steps file
+        # read in step times files
+
+        # expand times file to get all seconds, plus a 10s buffer at end
+        start = min(df_times$time)
+        end = max(df_times$time) + as.period(10, "seconds")
+        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
+
+        # if any rows (i.e. any steps)
+        if(nrow(step_df) > 0) {
+          step_df = step_df %>%
+            mutate(steps_scrf = 1) %>%
+            mutate(time = floor_date(time, unit = "seconds")) %>%
+            group_by(time) %>%
+            summarize(steps_scrf = sum(steps_scrf, na.rm = TRUE)) %>%
+            ungroup()
+          steps = left_join(time_df, step_df, by = "time") %>%
+            mutate(across(steps_scrf, ~ ifelse(is.na(.x), 0, .x)))
+        } else {
+          steps =
+            time_df %>%
+            mutate(steps_scrf = 0)
+        }
+
+        id = regmatches(file, gregexpr("(?<=a\\-)[a-zA-Z0-9]{3}", file, perl = TRUE))[[1]][1]
+        if (!file.exists(here::here("data", "reorganized", "marea", id, "step_estimates"))) {
+          dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"))
+        }
+        fname_root = sub(".*marea\\/(.+).csv.gz.*", "\\1", fname)
+        fname = paste0(fname_root, "-steps_stepcountrf.csv")
+        readr::write_csv(steps,
+                         here::here("data", "reorganized", "marea", id, "step_estimates",
+                                    fname))
+      })
+
+
+  map(c(ssl_res, ssl_res_raw),
+      .f = function(x){
+        fname = x$info$Filename
+        df_times = x$steps
+        step_df = x$step_times %>%
+          mutate(time = as.POSIXct(time))
+        # read in total steps file
+        # read in step times files
+
+        # expand times file to get all seconds, plus a 10s buffer at end
+        start = min(df_times$time)
+        end = max(df_times$time) + as.period(10, "seconds")
+        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
+
+        # if any rows (i.e. any steps)
+        if(nrow(step_df) > 0) {
+          step_df = step_df %>%
+            mutate(steps_scssl = 1) %>%
+            mutate(time = floor_date(time, unit = "seconds")) %>%
+            group_by(time) %>%
+            summarize(steps_scssl = sum(steps_scssl, na.rm = TRUE)) %>%
+            ungroup()
+          steps = left_join(time_df, step_df, by = "time") %>%
+            mutate(across(steps_scssl, ~ ifelse(is.na(.x), 0, .x)))
+        } else {
+          steps =
+            time_df %>%
+            mutate(steps_scssl = 0)
+        }
+
+        id = regmatches(file, gregexpr("(?<=a\\-)[a-zA-Z0-9]{3}", file, perl = TRUE))[[1]][1]
+        if (!file.exists(here::here("data", "reorganized", "marea", id, "step_estimates"))) {
+          dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"))
+        }
+        fname_root = sub(".*marea\\/(.+).csv.gz.*", "\\1", fname)
+        fname = paste0(fname_root, "-steps_stepcountssl.csv")
+        readr::write_csv(steps,
+                         here::here("data", "reorganized", "marea", id, "step_estimates",
+                                    fname))
+      })
 }
+
+
 
 map(c(rf_res, rf_res_raw),
     .f = function(x){

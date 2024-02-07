@@ -71,35 +71,37 @@ map(
   }
 )
 
-if(!file.exists(here::here("data", "actilife", "marea"))){
-  dir.create(here::here("data", "actilife", "marea"), recursive = TRUE)
-}
-
-if(!file.exists(here::here("data", "stepcount", "marea"))){
-  dir.create(here::here("data", "stepcount", "marea"), recursive = TRUE)
-}
-
-map(
-  .x = marea_files,
-  .f = function(filename) {
-    x = readr::read_csv(filename)
-    samp_rate = x$sample_rate[1]
-    fname = sub(".*\\/", "", filename)
-    temp_acti = x %>%
-      select(time = tm_dttm, X, Y, Z)
-    write.gt3x::write_actigraph_csv(
-      df = temp_acti,
-      file = here::here("data", "actilife", "marea", fname),
-      sample_rate = samp_rate,
-      max_g = "8",
-      progress = FALSE
-    )
-    temp_sc = x %>%
-      mutate(time = as.character(tm_dttm)) %>%
-      select(time, x = X, y = Y, z = Z)
-    write_csv(temp_sc, here::here("data", "stepcount", "marea", fname))
+if(length(marea_files) > 0){
+  if(!file.exists(here::here("data", "actilife", "marea"))){
+    dir.create(here::here("data", "actilife", "marea"), recursive = TRUE)
   }
-)
+
+  if(!file.exists(here::here("data", "stepcount", "marea"))){
+    dir.create(here::here("data", "stepcount", "marea"), recursive = TRUE)
+  }
+
+  map(
+    .x = marea_files,
+    .f = function(filename) {
+      x = readr::read_csv(filename)
+      samp_rate = x$sample_rate[1]
+      fname = sub(".*\\/", "", filename)
+      temp_acti = x %>%
+        select(time = tm_dttm, X, Y, Z)
+      write.gt3x::write_actigraph_csv(
+        df = temp_acti,
+        file = here::here("data", "actilife", "marea", fname),
+        sample_rate = samp_rate,
+        max_g = "8",
+        progress = FALSE
+      )
+      temp_sc = x %>%
+        mutate(time = as.character(tm_dttm)) %>%
+        select(time, x = X, y = Y, z = Z)
+      write_csv(temp_sc, here::here("data", "stepcount", "marea", fname))
+    }
+  )
+}
 
 if(!file.exists(here::here("data", "actilife", "oxwalk"))){
   dir.create(here::here("data", "actilife", "oxwalk"), recursive = TRUE)

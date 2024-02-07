@@ -447,7 +447,7 @@ options(digits.secs = 3)
 
 url = "https://ora.ox.ac.uk/objects/uuid:19d3cb34-e2b3-4177-91b6-1bad0e0163e7/files/dcj82k7829"
 
-options(timeout = 300)
+options(timeout = 600)
 downloader::download(url, dest = "oxwalk.zip", mode = "wb")
 if(!file.exists(here::here("data", "raw", "oxwalk"))){
   dir.create(here::here("data", "raw", "oxwalk"))
