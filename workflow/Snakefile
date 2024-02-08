@@ -1,0 +1,64 @@
+configfile: "workflow/paths.yaml"
+
+rule all: 
+  input: "results/all_algorithms/accuracy_stats_bysubject.rds"
+
+# rule clean_all: 
+#     shell: 
+#         rm -rf 
+
+import os 
+
+# if os.path.exists("data/raw/MAREA_dataset/"):
+#     ruleoder: download_data > process_actilife_results > process_actilife_results_nom
+# else: 
+#     ruleorder:  process_actilife_results_nom > process_actilife_results
+
+# sub rules 
+include: config["rules"] + "download_process.smk"
+include: config["rules"] + "resample.smk"
+include: config["rules"] + "reformat.smk"
+include: config["rules"] + "process_actilife.smk"
+include: config["rules"] + "fit_algorithms.smk"
+include: config["rules"] + "join_nest.smk"
+include: config["rules"] + "generate_results_rds.smk"
+
+
+# include: config["rules"] + "generate_results_rds.smk"
+# include: config["rules"] + "join_nest.smk"
+# include: config["rules"] + "fit_algorithms.smk"
+# include: config["rules"] + "process_actilife.smk"
+# include: config["rules"] + "reformat.smk"
+# include: config["rules"] + "resample.smk"
+# include: config["rules"] + "download_process.smk"
+
+# if os.path.exists("data/raw/MAREA_dataset/"):
+#     ruleorder: combine_results > combine_results_nom
+#     ruleorder: process_actilife_results > process_actilife_results_nom
+#     ruleorder: fit_stepcount > fit_stepcount_nom
+#     ruleorder: fit_algorithms > fit_algorithms_nom
+#     ruleorder: reformat > reformat_nom
+#     ruleorder: resample > resample_nom
+#     # ruleorder: download_data > resample > reformat > fit_algorithms > 
+#     # fit_stepcount > process_actilife_results > combine_results > download_data_nom > resample_nom > reformat_nom > fit_algorithms_nom > 
+#     # fit_stepcount_nom > process_actilife_results_nom > combine_results_nom 
+
+# else:
+#     ruleorder: combine_results_nom > combine_results
+#     ruleorder: process_actilife_results_nom > process_actilife_results
+#     ruleorder: fit_stepcount_nom > fit_stepcount
+#     ruleorder: fit_algorithms_nom > fit_algorithms
+#     ruleorder: reformat_nom > reformat
+#     ruleorder: resample_nom > resample
+#     # ruleorder: download_data < resample < reformat < fit_algorithms < 
+#     # fit_stepcount < process_actilife_results < combine_results < download_data_nom < resample_nom < reformat_nom < fit_algorithms_nom < 
+#     # fit_stepcount_nom < process_actilife_results_nom < combine_results_nom 
+
+
+# # sub rules 
+# include: config["rules"] + "generate_results_rds.smk"
+# include: config["rules"] + "fit_algorithms.smk"
+# include: config["rules"] + "process_actilife.smk"
+# include: config["rules"] + "reformat.smk"
+# include: config["rules"] + "resample.smk"
+# include: config["rules"] + "download_process.smk"

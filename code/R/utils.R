@@ -6,9 +6,9 @@ template_list = do.call(rbind, all_wrist_templates)
 template_list = apply(template_list, 1, identity, simplify = FALSE)
 
 fit_adept = function(data, sample_rate, templates = template_list) {
-  if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
+  if (!"HEADER_TIMESTAMP" %in% colnames(data)) {
     data = data %>%
-      rename(HEADER_TIME_STAMP = tm_dttm)
+      rename(HEADER_TIMESTAMP = tm_dttm)
   }
   step_result = adept::segmentWalking(
     xyz = data[, c("X", "Y", "Z")],
@@ -36,7 +36,7 @@ fit_adept = function(data, sample_rate, templates = template_list) {
     left_join(., step_result, by = c("row_ind" = "tau_i")) %>%
     mutate(
       steps = ifelse(is.na(steps), 0, steps),
-      time = lubridate::floor_date(HEADER_TIME_STAMP, unit = "seconds")
+      time = lubridate::floor_date(HEADER_TIMESTAMP, unit = "seconds")
     ) %>%
     group_by(time) %>%
     summarize(steps_adept = sum(steps)) %>%
@@ -52,20 +52,20 @@ fit_sdt =
       data = data %>%
         mutate(vm = sqrt(X ^ 2 + Y ^ 2 + Z ^ 2))
     }
-    if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
+    if (!"HEADER_TIMESTAMP" %in% colnames(data)) {
       data = data %>%
-        rename(HEADER_TIME_STAMP = tm_dttm)
+        rename(HEADER_TIMESTAMP = tm_dttm)
     }
     # vm threshold based on location
     srate = sample_rate
-    walking::sdt_count_steps(data, sample_rate = srate) %>%
+    walking::estimate_steps_sdt(data, sample_rate = srate) %>%
       rename(steps_sdt = steps)
   }
 
 fit_oak = function(data) {
-  if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
+  if (!"HEADER_TIMESTAMP" %in% colnames(data)) {
     data = data %>%
-      rename(HEADER_TIME_STAMP = tm_dttm)
+      rename(HEADER_TIMESTAMP = tm_dttm)
   }
   oak_res =
     estimate_steps_forest(data) %>%
@@ -75,15 +75,15 @@ fit_oak = function(data) {
   oak_res
 }
 
-fit_vs = function(data, sample_rate) {
-  if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
+fit_vs = function(data, sample_rate, resample = FALSE, method_type = "revised") {
+  if (!"HEADER_TIMESTAMP" %in% colnames(data)) {
     data = data %>%
-      rename(HEADER_TIME_STAMP = tm_dttm)
+      rename(HEADER_TIMESTAMP = tm_dttm)
   }
   vs_res = estimate_steps_verisense(
     data,
-    method = "revised",
-    resample_to_15hz = FALSE,
+    method = method_type,
+    resample_to_15hz = resample,
     sample_rate = sample_rate
   ) %>%
     rename(steps_vs = steps)
@@ -93,12 +93,12 @@ fit_vs = function(data, sample_rate) {
 
 # function to get ground truth step count
 get_truth = function(data) {
-  if (!"HEADER_TIME_STAMP" %in% colnames(data)) {
+  if (!"HEADER_TIMESTAMP" %in% colnames(data)) {
     data = data %>%
-      rename(HEADER_TIME_STAMP = tm_dttm)
+      rename(HEADER_TIMESTAMP = tm_dttm)
   }
   truth = data %>%
-    group_by(time = lubridate::floor_date(HEADER_TIME_STAMP)) %>%
+    group_by(time = lubridate::floor_date(HEADER_TIMESTAMP)) %>%
     summarize(steps_truth = sum(ind_step, na.rm = TRUE))
   truth
 }

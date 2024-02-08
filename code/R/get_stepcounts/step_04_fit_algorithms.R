@@ -32,7 +32,7 @@ oxwalk_files = list.files(here::here("data", "reorganized",
                           pattern = ".*.csv.gz")
 
 if(length(marea_files) > 0){
-  map(c(clemson_files, oxwalk_files),
+  map(c(clemson_files, oxwalk_files, marea_files),
       .f = function(x){
         df = readr::read_csv(x)
         # determine which study data come from
@@ -55,9 +55,9 @@ if(length(marea_files) > 0){
           fname_root_new = paste0(fname_root, "-steps_")
         }
         # rename `tm_dttm` column to be compatible with algorithms
-        if (!"HEADER_TIME_STAMP" %in% colnames(df)) {
+        if (!"HEADER_TIMESTAMP" %in% colnames(df)) {
           df = df %>%
-            rename(HEADER_TIME_STAMP = tm_dttm)
+            rename(HEADER_TIMESTAMP = tm_dttm)
         }
         # get sample rate
         srate = df$sample_rate[1]
@@ -85,12 +85,30 @@ if(length(marea_files) > 0){
           readr::write_csv(sdt, here::here("data", "reorganized", study, id, "step_estimates",
                                            paste0(fname_root_new, "sdt.csv")))
         }
+        if(file.exists(here::here("data", "reorganized", study, id, "step_estimates",
+                                   paste0(fname_root_new, "vs.csv")))){
+          vso_raw = fit_vs(df, sample_rate = srate, method_type = "original", resample = FALSE) %>%
+             rename(steps_vsoraw = steps_vs)
+          vso_res = fit_vs(df, sample_rate = srate, method_type = "original", resample = TRUE) %>%
+            rename(steps_vsores = steps_vs)
+          vsr_raw = fit_vs(df, sample_rate = srate, method_type = "revised", resample = FALSE) %>%
+            rename(steps_vsrraw = steps_vs)
+          vsr_res = fit_vs(df, method_type = "revised", sample_rate = srate, resample = TRUE) %>%
+            rename(steps_vsrres = steps_vs)
+          vs = left_join(vso_raw, vsr_raw, by = "time") %>%
+            left_join(vso_res, by = "time") %>%
+            left_join(vsr_res, by = "time")
+          readr::write_csv(vs, here::here("data", "reorganized", study, id, "step_estimates",
+                                          paste0(fname_root_new, "vs.csv")))
+        }
+
         if(!file.exists(here::here("data", "reorganized", study, id, "step_estimates",
                                    paste0(fname_root_new, "vs.csv")))){
           vs = fit_vs(df, sample_rate = srate)
           readr::write_csv(vs, here::here("data", "reorganized", study, id, "step_estimates",
                                           paste0(fname_root_new, "vs.csv")))
         }
+
         # if not resampled data, write truth
         if(!grepl("resampled", x) &
            !file.exists(here::here("data", "reorganized", study, id, "step_estimates",

@@ -46,6 +46,7 @@ f1_pre_recall_acc =
          prec = tp / (tp + fp),
          f1 = tp/(tp + (0.5*(fp + fn))),
          acc = (tp + tn) / (tp + tn + fp + fn)) %>%
+  mutate(prec = ifelse(tp == 0 & fp == 0 & fn > 0, 0, prec)) %>%
   ungroup() %>%
   mutate(id_study = case_when(cat_activity == "marea" ~ "marea",
                               cat_activity %in% c("oxwalk100", "oxwalk25") ~ "oxwalk",
@@ -81,6 +82,7 @@ f1_pre_recall_acc_clem =
          prec = tp / (tp + fp),
          f1 = tp/(tp + (0.5*(fp + fn))),
          acc = (tp + tn) / (tp + tn + fp + fn)) %>%
+  mutate(prec = ifelse(tp == 0 & fp == 0 & fn > 0, 0, prec)) %>%
   ungroup() %>%
   mutate(id_study = "clemson", cat_activity = "clemson_overall")
 

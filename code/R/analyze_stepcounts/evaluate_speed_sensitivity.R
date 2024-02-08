@@ -2,14 +2,15 @@ library(tidyverse)
 library(ggpmisc)
 
 # marea_nested  = readRDS("~/Documents/step_algorithms/data/processed/marea_nested_all.rds")
-marea = read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz"))
+marea = read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz")) %>%
+  select(-contains("raw"))
 
 
 # speed vs bias figure
 # bias is estimated per minute
-labs = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense")
+labs = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (Original)", "Verisense (Revised)")
 
-names(labs) = c("steps_acti", "steps_adept", "steps_oak",  "steps_scrf", "steps_scssl","steps_sdt", "steps_vs")
+names(labs) = c("steps_acti", "steps_adept", "steps_oak",  "steps_scrf", "steps_scssl","steps_sdt", "steps_vsores", "steps_vsrres")
 
 marea %>%
   filter(cat_activity_large == "treadmill_walkrun") %>%
@@ -38,7 +39,7 @@ marea %>%
   scale_color_brewer(palette = "Dark2")
 
 # with shapes for each activity
-marea %>%
+plt=marea %>%
   filter(cat_activity_large == "treadmill_walkrun") %>%
   group_by(id_subject, cat_activity_large, cat_activity, speed) %>%
   mutate(n_sec = n()) %>%
@@ -58,7 +59,7 @@ marea %>%
   stat_poly_line(aes(col = algorithm), se = FALSE)+
   # stat_poly_eq(use_label(c("eq", "p")), col = "black", label.y = .2)+
   theme_bw()+
-  labs(x = "Speed (km/hr)", y = "Estimated Bias per Minute")+
+  labs(x = "Speed (km/hr)", y = "Estimated Difference (Truth - Predicted) per Minute")+
   scale_x_continuous(breaks=seq(4,8,0.8))+
   scale_shape_manual(name = "", values = c(17, 16), labels = c("Run", "Walk"))+
   geom_hline(aes(yintercept = 0))+
@@ -70,5 +71,6 @@ marea %>%
         strip.text = element_text(size = 10),
         axis.title = element_text(size = 12),
         axis.text = element_text(size = 10))
-
-
+svg(here::here("manuscript_figures","speed.svg"))
+plt
+dev.off()

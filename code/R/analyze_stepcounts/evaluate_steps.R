@@ -1,4 +1,5 @@
 library(tidyverse)
+`%notin%` = Negate(`%in%`)
 clemson = readr::read_csv(here::here("results/all_algorithms/clemson_step_estimates_1sec.csv.gz"))
 # just use 100 hz data from oxwalk for this part
 oxwalk = readr::read_csv(here::here("results/all_algorithms/oxwalk_step_estimates_1sec.csv.gz")) %>%
@@ -25,7 +26,8 @@ marea = marea %>%
 step_df =
   readRDS(here::here("results", "all_algorithms", "step_stats_bysubject.rds")) %>%
   filter(cat_activity != "oxwalk25" &
-         grepl("30", algorithm))
+         grepl("30", algorithm)) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30"))
 
 # manuscript table
 tab_individual =
@@ -43,7 +45,8 @@ tab_individual =
   ) %>%
   select(algorithm, cat_activity, mean, metric) %>%
   pivot_wider(names_from = c(cat_activity,metric), values_from = mean) %>%
-  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense"))
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT",
+                       "Verisense (original)", "Verisense (revised)"))
 
 tab_overall =
   step_df %>%
@@ -61,19 +64,20 @@ tab_overall =
   select(algorithm, mean, metric) %>%
   mutate(name = "overall") %>%
   pivot_wider(names_from = c(name, metric), values_from = mean) %>%
-  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense"))
-
+  mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT",
+                       "Verisense (original)", "Verisense (revised)"))
 
 tab_individual %>%
   left_join(tab_overall) %>%
   select(algorithm, ends_with("ape"), ends_with("bias")) %>%
   kableExtra::kable(align = "llll",booktabs = TRUE, format = "latex", col.names =
-                      c("Algorithm", rep(c("Clemson", "MAREA", "Owalk", "Overall"), 2))) %>%
+                      c("Algorithm", rep(c("Clemson", "MAREA", "OxWalk", "Overall"), 2))) %>%
   kableExtra::add_header_above(c(" " = 1, "APE" = 4, "Bias" = 4)) %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
 # supplemental table (long)
 step_df %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>% # remove the raw 30 hz verisense, just use reampled
   filter(cat_activity != "clemson_overall") %>%
   pivot_longer(cols = c("bias", "ape"), names_to = "metric") %>%
   group_by(metric, algorithm, cat_activity) %>%
@@ -83,7 +87,7 @@ step_df %>%
   rowwise() %>%
   mutate(mean = case_when(
     metric == "bias" ~  paste0(sprintf(value_mean, fmt = "%.0f"), " (", sprintf(value_sd, fmt = "%.0f"), ")"),
-    metric == "ape" ~ paste0(sprintf(value_mean*100, fmt = "%#.1f"), " (", sprintf(value_sd*100, fmt = "%.0f"), ")"))
+    metric == "ape" ~ paste0(sprintf(value_mean, fmt = "%#.1f"), " (", sprintf(value_sd, fmt = "%.0f"), ")"))
   ) %>%
   select(algorithm, cat_activity, mean, metric) %>%
   pivot_wider(names_from = cat_activity, values_from = mean)  %>%
@@ -99,10 +103,14 @@ step_df %>%
 # figures
 
 # PLOTS truth vs predicted
-total_steps = readRDS(here::here("results", "all_algorithms", "total_steps_bysubject.rds"))
-labs = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense")
+total_steps = readRDS(here::here("results", "all_algorithms", "total_steps_bysubject.rds")) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
+  filter(cat_activity != "oxwalk25" &
+           (grepl("30", algorithm) | grepl("truth", algorithm)))
+labs = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (original)",
+         "Verisense (revised)")
 
-names(labs) = c("acti", "adept", "oak",  "scrf", "scssl","sdt", "vs")
+names(labs) = c("acti", "adept", "oak",  "scrf", "scssl","sdt", "vsores", "vsrres")
 
 clem2 =
   total_steps %>%
@@ -196,13 +204,15 @@ mar2 =
   coord_equal()+
   guides(shape = guide_legend(nrow = 1))
 
+svg(here::here("manuscript_figures", "truth_v_predicted.svg"))
 cowplot::plot_grid(clem2, mar2, ox, nrow = 3)
-
+dev.off()
 # p values
 stats =
   step_df %>%
   filter(cat_activity %in% c("oxwalk100", "marea", "clemson_overall") &
            grepl("30", algorithm)) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
   select(bias, ape, id_subject, id_study = cat_activity, algorithm)
 
 
@@ -228,8 +238,8 @@ expand.grid.unique <- function(x, y, include.equals=FALSE)
   do.call(rbind, lapply(seq_along(x), g))
 }
 # significance testing
-pairs = expand.grid.unique(x = c("acti", "adept", "oak", "scrf", "scssl", "sdt", "vs"),
-                           y =  c("acti", "adept", "oak", "scrf", "scssl", "sdt", "vs")) %>%
+pairs = expand.grid.unique(x = c("acti", "adept", "oak", "scrf", "scssl", "sdt", "vsores", "vsrres"),
+                           y =  c("acti", "adept", "oak", "scrf", "scssl", "sdt", "vsores", "vsrres")) %>%
   as_tibble() %>%
   magrittr::set_colnames(c("var1", "var2")) %>%
   mutate(var1 = paste0("steps_", var1, "_30"),
@@ -275,8 +285,8 @@ bias = t_test_res %>%
                show.limits = TRUE,
                guide = "colorsteps"
   ) +
-  scale_x_discrete(labels = c("actilife", "adept", "oak", "scrf", "scssl", "sdt")) +
-  scale_y_discrete(labels = c( "adept", "oak", "scrf","scssl", "sdt", "vs"))+
+  scale_x_discrete(labels = c("actilife", "adept", "oak", "scrf", "scssl", "sdt", "vso")) +
+  scale_y_discrete(labels = c( "adept", "oak", "scrf","scssl", "sdt", "vso", "vsr"))+
   labs(title = "p values for bias score")
 
 key = recog_stats_test %>%
@@ -319,8 +329,8 @@ ape = t_test_res %>%
                show.limits = TRUE,
                guide = "colorsteps"
   ) +
-  scale_x_discrete(labels = c("actilife", "adept", "oak", "scrf", "scssl", "sdt")) +
-  scale_y_discrete(labels = c( "adept", "oak", "scrf","scssl", "sdt", "vs"))+
+  scale_x_discrete(labels = c("actilife", "adept", "oak", "scrf", "scssl", "sdt", "vso")) +
+  scale_y_discrete(labels = c( "adept", "oak", "scrf","scssl", "sdt", "vso", "vsr"))+
   labs(title = "p values for ape score")
 
 
