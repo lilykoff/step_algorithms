@@ -23,7 +23,7 @@ methods_et = ["oak", "vs", "sdt",  "adept", "stepcountrf", "stepcountssl", "acti
 
 rule process_actilife_results: 
     input: 
-        script = config["code_stepcounts"] + "step_05_process_actilife_stepcount_results.R",
+        script = config["code_stepcounts"] + "step_05_process_actilife_sc_results.R",
         data = (expand(config["out_reorganized"] +    "{dataname}/{id}/{dataname}-{id}-walk_{type}-{sample_details}.csv.gz", 
         dataname = "clemson", id = ["P{:02d}".format(i) for i in range(1, 31)], sample_details=["resampled15to30Hz"], type = ["regular", "irregular", "semiregular"]),   
         expand(config["out_reorganized"] + "{dataname}/{id}/{dataname}-{id}-{type}-{sample_details}.csv.gz", 
@@ -57,7 +57,7 @@ rule process_actilife_results:
 
 rule process_actilife_results_nom: 
     input: 
-        script = config["code_stepcounts"] + "step_05_process_actilife_stepcount_results.R",
+        script = config["code_stepcounts"] + "step_05_process_actilife_sc_results.R",
         data = (expand(config["out_reorganized"] +    "{dataname}/{id}/{dataname}-{id}-walk_{type}-{sample_details}.csv.gz", 
         dataname = "clemson", id = ["P{:02d}".format(i) for i in range(1, 31)], sample_details=["resampled15to30Hz"], type = ["regular", "irregular", "semiregular"]),   
         expand(config["out_reorganized"] + "{dataname}/{id}/{dataname}-{id}-{sample_details}.csv.gz", 

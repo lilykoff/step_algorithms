@@ -32,4 +32,5 @@ out_res_scrf : "results/stepcount_rf/"
 out_res_scssl : "results/stepcount_ssl/"
 out_proc : "data/processed/"
 rules : "rules/"
-
+results : "results/all_algorithms/"
+figs : "manuscript_figures/"
