@@ -8,3 +8,7 @@ data/
 results/stepcount
 results/actilife
 results/stepcount_rf
+results/stepcount_ssl
+*marea*
+*.svg
+*archive
