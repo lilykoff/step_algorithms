@@ -55,6 +55,7 @@ To reproduce the results of our analysis completely, follow the steps below.
 + Python 3 (Python 3.6 or higher)
 + snakemake 
 + R (version 4.0.x)
++ Stepcount
 
 To install Python follow instructions [here](https://docs.anaconda.com/free/anaconda/install/index.html)
 
@@ -69,6 +70,19 @@ pip install -r requirements.txt
 ```
 
 To install R follow instructions [here](https://rstudio-education.github.io/hopr/starting.html)
+
+To install stepcount follow instructions [here](https://github.com/OxWearables/stepcount/tree/main), but to make results compatible with ours use git version below: 
+```
+conda create -n stepcount python=3.9 openjdk pip
+```
+
+```
+conda activate stepcount
+```
+
+```
+pip install git+https://github.com/OxWearables/stepcount.git1afed4edaeed1d4b3483c60c0b3d8595198b863b
+```
 
 To control the packages required and version of packages used, we use `renv`. See the `renv.lock` for packages and package versions required. 
 

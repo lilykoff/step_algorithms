@@ -1,6 +1,6 @@
 # process results from stepcount into same format as other algorithms
 # f5896677e6e849725ef8cccea2e627f23421a548
-
+# full SHA for code used 1afed4edaeed1d4b3483c60c0b3d8595198b863b
 library(tidyverse)
 options(digits.secs = 3)
 source(here::here("code/R/utils.R"))

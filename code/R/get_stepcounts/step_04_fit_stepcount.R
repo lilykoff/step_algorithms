@@ -1,6 +1,10 @@
 # r version of stepcount
 # conda activate stepcount
+# john's version
 # pip install git+https://github.com/OxWearables/stepcount.git@1afed4edaeed1d4b3483c60c0b3d8595198b863b
+# mine
+# pip install git+https://github.com/OxWearables/stepcount.git1afed4edaeed1d4b3483c60c0b3d8595198b863b
+
 devtools::install_github("jhuwit/stepcount")
 stepcount::unset_reticulate_python()
 stepcount::use_stepcount_condaenv()
