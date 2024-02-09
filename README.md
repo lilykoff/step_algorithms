@@ -82,3 +82,8 @@ snakemake --cores 1 all
 If no folder named `MAREA_dataset` is present in `data/raw/`, the analysis will run without including MAREA. If you have obtained access to the MAREA data, include the raw data as a folder named `MAREA_dataset` in `data/raw/` before running snakemake. 
 
 The second-level results from actilife are included in the repository for Clemson and OxWalk data since these results cannot be obtained from an open source method. 
+
+Workflow modeled from: 
+[Deer, Lachlan and Julian Langer and Ulrich Bergmann. 2021. A Reproducible Workflow for Economics Research Using Snakemake and R](https://github.com/lachlandeer/snakemake-econ-r)
+
+
