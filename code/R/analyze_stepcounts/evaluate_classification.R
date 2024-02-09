@@ -178,7 +178,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
     scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense (Original)", "Verisense (Revised)", "Stepcount (RF)", "Stepcount (SSL)"))
-  svg(here::here("manuscript_figures", "boxplot_overall.svg"))
+  svg(here::here("manuscript/figures", "boxplot_overall.svg"))
   plot
   dev.off()
 
@@ -212,7 +212,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     guides(colour = guide_legend(nrow = 4))+
     scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense (Original)", "Verisense (Revised)", "Stepcount (RF)", "Stepcount (SSL)"))
 
-  svg(here::here("manuscript_figures", "boxplot_all.svg"))
+  svg(here::here("manuscript/figures", "boxplot_all.svg"))
   plot
   dev.off()
 
@@ -539,7 +539,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
     scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense (Original)", "Verisense (Revised)", "Stepcount (RF)", "Stepcount (SSL)"))
-  svg(here::here("manuscript_figures", "boxplot_overall.svg"))
+  svg(here::here("manuscript/figures", "boxplot_overall.svg"))
   plot
   dev.off()
 
@@ -573,7 +573,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     guides(colour = guide_legend(nrow = 4))+
     scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense (Original)", "Verisense (Revised)", "Stepcount (RF)", "Stepcount (SSL)"))
 
-  svg(here::here("manuscript_figures", "boxplot_all.svg"))
+  svg(here::here("manuscript/figures", "boxplot_all.svg"))
   plot
   dev.off()
 

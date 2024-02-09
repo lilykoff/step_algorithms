@@ -71,6 +71,6 @@ plt=marea %>%
         strip.text = element_text(size = 10),
         axis.title = element_text(size = 12),
         axis.text = element_text(size = 10))
-svg(here::here("manuscript_figures","speed.svg"))
+svg(here::here("manuscript/figures","speed.svg"))
 plt
 dev.off()

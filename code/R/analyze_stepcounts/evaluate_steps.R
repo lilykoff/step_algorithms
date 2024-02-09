@@ -205,7 +205,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     coord_equal()+
     guides(shape = guide_legend(nrow = 1))
 
-  svg(here::here("manuscript_figures", "truth_v_predicted.svg"))
+  svg(here::here("manuscript/figures", "truth_v_predicted.svg"))
   cowplot::plot_grid(clem2, mar2, ox, nrow = 3)
   dev.off()
   # p values
@@ -504,7 +504,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
 
 
 
-  svg(here::here("manuscript_figures", "truth_v_predicted.svg"))
+  svg(here::here("manuscript/figures", "truth_v_predicted.svg"))
   cowplot::plot_grid(clem2, ox, nrow = 3)
   dev.off()
   # p values

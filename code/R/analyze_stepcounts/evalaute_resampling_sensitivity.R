@@ -185,7 +185,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
           strip.text = element_text(size = 12),
           plot.title = element_text(size = 13))
 
-  svg(here::here("manuscript_figures", "bland_altman_sc.svg"))
+  svg(here::here("manuscript/figures", "bland_altman_sc.svg"))
   plt
   dev.off()
   clemson %>%
@@ -331,7 +331,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
           plot.title = element_text(size = 13))
 
 
-  svg(here::here("manuscript_figures", "bland_altman_vs.svg"))
+  svg(here::here("manuscript/figures", "bland_altman_vs.svg"))
   plot
   dev.off()
 
@@ -553,7 +553,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
           strip.text = element_text(size = 12),
           plot.title = element_text(size = 13))
 
-  svg(here::here("manuscript_figures", "bland_altman_sc.svg"))
+  svg(here::here("manuscript/figures", "bland_altman_sc.svg"))
   plt
   dev.off()
   clemson %>%
@@ -699,7 +699,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
           plot.title = element_text(size = 13))
 
 
-  svg(here::here("manuscript_figures", "bland_altman_vs.svg"))
+  svg(here::here("manuscript/figures", "bland_altman_vs.svg"))
   plot
   dev.off()
 

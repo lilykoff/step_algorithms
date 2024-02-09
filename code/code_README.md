@@ -1,8 +1,10 @@
+Run `snakemake --cores 1` to replicate entire analysis; below is a description of each file.
+
 ## R/get_stepcounts
 
 -   The code in this folder downloads the raw data sets and runs each of the step counting algorithms on the raw data to get the results needed for analysis
 
--   `run_all_files.R` will run all of the following files, and final output is `results/all_algorithms/<study_ID>step_estimates_1sec.csv.gz` and `results/all_algorithms/<study_ID>step_estimates_10sec.csv.gz`
+-   Final output from files in this folder are: `results/all_algorithms/<study_ID>step_estimates_1sec.csv.gz`
 
 ### Step one: download data and process into unified format
 
@@ -41,9 +43,8 @@
     -   Outputs:
         -   `csv.gz` files in `data/stepcount` from both raw and resampled data, separate subfolders for each study
 
-    ```{=html}
     <!-- -->
-    ```
+
     -   For actilife algorithm, data need to be in `csv` or `csv.gz` with specific header
 
     -   Outputs:
@@ -62,6 +63,7 @@
     -   Runs `bash/step_four_fit_stepcount.sh` shell script to run stepcount in conda environment
     -   Outputs:
         -   `results/stepcount` with study and individual subfolders
+    -   Alternatively, run `step_04_fit_stepcount.R` to run `stepcount` with \texttt{stepcount} R package instead (wrapper for Python)
 
 -   Actilife needs to be run through their proprietary software
 
@@ -80,13 +82,17 @@
 
     -   Reads in files in `data/reorganized` and joins step estimates with raw acceleration data
     -   Output in `data/processed` subfolders
-    -   Second and 10-second level step summaries in `results/all_algorithms`
+    -   Second level step summaries in `results/all_algorithms`
 
 ## R/analyze_stepcounts
 
 -   The code in this folder uses the results from `get_stepcounts` to replicate the analyses in the paper
 
--   Inputs: `results/all_algorithms/<study_ID>step_estimates_1sec.csv.gz` and `results/all_algorithms/<study_ID>step_estimates_10sec.csv.gz`
+-   `generate_results_dfs.R`:
+
+    -   Inputs: `results/all_algorithms/<study_ID>step_estimates_1sec.csv.gz`
+
+    -   Outputs: `results/all_algorithms/accuracy_stats_bysubject.rds` , `results_all_algorithms/step_stats_bysubject.rds` , `results/all_algorithms/total_steps_bysubject.rds` -- these files are used to generate tables, figures in manuscript
 
 -   `evaluate_classification.R` : generates tables and figures about accuracy of walking classification
 

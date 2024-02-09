@@ -3,7 +3,7 @@
 ## Description 
 Comparison of step-counting algorithms on three datasets:
 
-+ [Clemson ped eval](https://cecas.clemson.edu/~ahoover/pedometer/)
++ [Clemson Ped-Eval](https://cecas.clemson.edu/~ahoover/pedometer/)
 + [Ox Walk](https://ora.ox.ac.uk/objects/uuid:19d3cb34-e2b3-4177-91b6-1bad0e0163e7)
 + [MAREA](https://wiki.hh.se/caisr/index.php/Gait_database)
 
@@ -30,3 +30,54 @@ Comparison of step-counting algorithms on three datasets:
 + `code/R/get_stepcounts` downloads data and fits algorithms 
 + `code/R/analyze_stepconts` analyzes results with respect to accuracy of walking recongition and step counting
 + More details in [`code/code_README.md`](https://github.com/lilykoff/step_algorithms/blob/main/code/code_README.md)
+
+## Results
+### actilife
+Results from Actilife included for Clemson and Oxwalk datasets 
+### all_algorithms 
++ `accuracy_stats_bysubject.rds`
++ `step_stats_bysubject.rds`
++ `total_steps_bysubject.rds`
+
+## Manuscript
+
+### Figures
+All figures used in manuscript 
+
+
+## Workflow 
+
+To reproduce the results of our analysis completely, follow the steps below. 
+
+
+### Requirements 
++ Python 3 (Python 3.6 or higher)
++ snakemake 
++ R (version 4.0.x)
+
+To install Python follow instructions [here](https://docs.anaconda.com/free/anaconda/install/index.html)
+
+To install snakemake: 
+
+```
+pip3 install -r requirements.txt
+```
+or 
+```
+pip install -r requirements.txt
+```
+
+To install R follow instructions [here](https://rstudio-education.github.io/hopr/starting.html)
+
+To control the packages required and version of packages used, we use `renv`. See the `renv.lock` for packages and package versions required. 
+
+To perform the analysis, run: 
+```
+snakemake --cores 1 all
+```
+
+#### Notes
+
+If no folder named `MAREA_dataset` is present in `data/raw/`, the analysis will run without including MAREA. If you have obtained access to the MAREA data, include the raw data as a folder named `MAREA_dataset` in `data/raw/` before running snakemake. 
+
+The second-level results from actilife are included in the repository for Clemson and OxWalk data since these results cannot be obtained from an open source method. 
