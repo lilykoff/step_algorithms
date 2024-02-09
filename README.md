@@ -33,11 +33,12 @@ Comparison of step-counting algorithms on three datasets:
 
 ## Results
 ### actilife
-Results from Actilife included for Clemson and Oxwalk datasets 
+Results from Actilife included for Clemson and OxWalk datasets 
 ### all_algorithms 
-+ `accuracy_stats_bysubject.rds`
-+ `step_stats_bysubject.rds`
-+ `total_steps_bysubject.rds`
++ `accuracy_stats_bysubject.rds` : f1 score, precision, recall, accuracy for each subject, dataset, algorithm 
++ `step_stats_bysubject.rds` : bias and APE for each subject, dataset, algorithm
++ `total_steps_bysubject.rds` : total steps (truth) and total steps estimated by each algorithm for subject, dataset 
++ `<dataset>_step_estimates_1sec.csv.gz` : second-level step estimates for subject, dataset, and algorithm
 
 ## Manuscript
 
