@@ -81,7 +81,8 @@ conda activate stepcount
 ```
 
 ```
-pip install git+https://github.com/OxWearables/stepcount.git1afed4edaeed1d4b3483c60c0b3d8595198b863b
+pip install git+https://github.com/OxWearables/stepcount.git@1afed4edaeed1d4b3483c60c0b3d8595198b863b 
+
 ```
 
 To control the packages required and version of packages used, we use `renv`. See the `renv.lock` for packages and package versions required. 
