@@ -74,3 +74,4 @@ plt=marea %>%
 svg(here::here("manuscript/figures","speed.svg"))
 plt
 dev.off()
+plt

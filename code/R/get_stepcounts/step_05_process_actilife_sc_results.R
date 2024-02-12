@@ -31,87 +31,89 @@ ox_csvs = list.files(
 #
 # for these ones need to use the "steps" csv to get true length of times
 map(.x = clemson_csvs,
-     function(file) {
-       df_times = readr::read_csv(file)
-       #read in total steps file
-       # read in step times files
-       stepfile = list.files(here::here("results", "stepcount_rf", "clemson",
-                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
-                                        full.names = TRUE,
-                                        recursive = TRUE,
-                                        pattern = "StepTimes.csv")
-       step_df = readr::read_csv(stepfile)
+    function(file) {
+      df_times = readr::read_csv(file)
+      #read in total steps file
+      # read in step times files
+      stepfile = list.files(here::here("results", "stepcount_rf", "clemson",
+                                       sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                            full.names = TRUE,
+                            recursive = TRUE,
+                            pattern = "StepTimes.csv")
+      step_df = readr::read_csv(stepfile)
 
       # expand times file to get all seconds, plus a 10s buffer at end
-       start = min(df_times$time)
-       end = max(df_times$time) + as.period(10, "seconds")
-       time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
+      start = min(df_times$time)
+      end = max(df_times$time) + as.period(10, "seconds")
+      time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
 
-       # if any rows (i.e. any steps)
-       if(nrow(step_df) > 0) {
-         step_df = step_df %>%
-           mutate(steps_scrf = 1) %>%
-           mutate(time = floor_date(time, unit = "seconds")) %>%
-           group_by(time) %>%
-           summarize(steps_scrf = sum(steps_scrf, na.rm = TRUE)) %>%
-           ungroup()
-         steps = left_join(time_df, step_df, by = "time") %>%
-           mutate(across(steps_scrf, ~ ifelse(is.na(.x), 0, .x)))
-       } else {
-         steps =
-           time_df %>%
-           mutate(steps_scrf = 0)
-       }
-       id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", file)
-       if (!file.exists(here::here("data", "reorganized", "clemson", id, "step_estimates"))) {
-         dir.create(here::here("data", "reorganized", "clemson", id, "step_estimates"))
-       }
-       fname_root = sub(".*Hz\\/(.+)-StepTimes.*", "\\1", stepfile)
-       fname = paste0(fname_root, "-steps_stepcountrf.csv")
-       readr::write_csv(steps,
-                        here::here("data", "reorganized", "clemson", id, "step_estimates",
-                                   fname))
-     })
+      # if any rows (i.e. any steps)
+      if(nrow(step_df) > 0) {
+        step_df = step_df %>%
+          mutate(steps_scrf = 1) %>%
+          mutate(time = floor_date(time, unit = "seconds")) %>%
+          group_by(time) %>%
+          summarize(steps_scrf = sum(steps_scrf, na.rm = TRUE)) %>%
+          ungroup()
+        steps = left_join(time_df, step_df, by = "time") %>%
+          mutate(across(steps_scrf, ~ ifelse(is.na(.x), 0, .x)))
+      } else {
+        steps =
+          time_df %>%
+          mutate(steps_scrf = 0)
+      }
+      id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", file)
+      if (!file.exists(here::here("data", "reorganized", "clemson", id, "step_estimates"))) {
+        dir.create(here::here("data", "reorganized", "clemson", id, "step_estimates"),
+                   recursive = TRUE)
+      }
+      fname_root = sub(".*Hz\\/(.+)-StepTimes.*", "\\1", stepfile)
+      fname = paste0(fname_root, "-steps_stepcountrf.csv")
+      readr::write_csv(steps,
+                       here::here("data", "reorganized", "clemson", id, "step_estimates",
+                                  fname))
+    })
 #
 map(.x = ox_csvs,
-     function(file) {
-       df_times = readr::read_csv(file)
-       stepfile = list.files(here::here("results", "stepcount_rf", "oxwalk",
-                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
-                             full.names = TRUE,
-                             recursive = TRUE,
-                             pattern = "StepTimes.csv")
-       step_df = readr::read_csv(stepfile)
-#
-       start = min(df_times$time)
-       end = max(df_times$time) + as.period(10, "seconds")
-       time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
-#
-       step_df = readr::read_csv(stepfile)
-       if(nrow(step_df) > 0) {
-         step_df = step_df %>%
-           mutate(steps_scrf = 1) %>%
-           mutate(time = floor_date(time, unit = "seconds")) %>%
-           group_by(time) %>%
-           summarize(steps_scrf = sum(steps_scrf, na.rm = TRUE)) %>%
-           ungroup()
-         steps = left_join(time_df, step_df, by = "time") %>%
-           mutate(across(steps_scrf, ~ ifelse(is.na(.x), 0, .x)))
-       } else {
-         steps =
-           time_df %>%
-           mutate(steps_scrf = 0)
-       }
-       id = sub(".*oxwalk\\-(.+)-r.*", "\\1", file)
-       if (!file.exists(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))) {
-         dir.create(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))
-       }
-       fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
-       fname = paste0(fname_root, "-steps_stepcountrf.csv")
-       readr::write_csv(steps,
-                        here::here("data", "reorganized", "oxwalk", id, "step_estimates",
-                                   fname))
-     })
+    function(file) {
+      df_times = readr::read_csv(file)
+      stepfile = list.files(here::here("results", "stepcount_rf", "oxwalk",
+                                       sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                            full.names = TRUE,
+                            recursive = TRUE,
+                            pattern = "StepTimes.csv")
+      step_df = readr::read_csv(stepfile)
+      #
+      start = min(df_times$time)
+      end = max(df_times$time) + as.period(10, "seconds")
+      time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
+      #
+      step_df = readr::read_csv(stepfile)
+      if(nrow(step_df) > 0) {
+        step_df = step_df %>%
+          mutate(steps_scrf = 1) %>%
+          mutate(time = floor_date(time, unit = "seconds")) %>%
+          group_by(time) %>%
+          summarize(steps_scrf = sum(steps_scrf, na.rm = TRUE)) %>%
+          ungroup()
+        steps = left_join(time_df, step_df, by = "time") %>%
+          mutate(across(steps_scrf, ~ ifelse(is.na(.x), 0, .x)))
+      } else {
+        steps =
+          time_df %>%
+          mutate(steps_scrf = 0)
+      }
+      id = sub(".*oxwalk\\-(.+)-r.*", "\\1", file)
+      if (!file.exists(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))) {
+        dir.create(here::here("data", "reorganized", "oxwalk", id, "step_estimates"),
+                   recursive = TRUE)
+      }
+      fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
+      fname = paste0(fname_root, "-steps_stepcountrf.csv")
+      readr::write_csv(steps,
+                       here::here("data", "reorganized", "oxwalk", id, "step_estimates",
+                                  fname))
+    })
 #
 if(length(marea_csvs) > 0){
   map(.x = marea_csvs,
@@ -144,7 +146,8 @@ if(length(marea_csvs) > 0){
         }
         id = regmatches(file, gregexpr("(?<=a\\-)[a-zA-Z0-9]{3}", file, perl = TRUE))[[1]][1]
         if (!file.exists(here::here("data", "reorganized", "marea", id, "step_estimates"))) {
-          dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"))
+          dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"),
+                     recursive = TRUE)
         }
         fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
         fname = paste0(fname_root, "-steps_stepcountrf.csv")
@@ -152,7 +155,7 @@ if(length(marea_csvs) > 0){
                          here::here("data", "reorganized", "marea", id, "step_estimates",
                                     fname))
       })
-#
+  #
 }
 #
 # SSL results
@@ -181,124 +184,130 @@ ox_csvs = list.files(
 #
 #
 map(.x = clemson_csvs,
-     function(file) {
-       df_times = readr::read_csv(file)
-       stepfile = list.files(here::here("results", "stepcount_ssl", "clemson",
-                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
-                             full.names = TRUE,
-                             recursive = TRUE,
-                             pattern = "StepTimes.csv")
-       step_df = readr::read_csv(stepfile)
-#
-       start = min(df_times$time)
-       end = max(df_times$time) + as.period(10, "seconds")
-       time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
-#
-       if(nrow(step_df) > 0) {
-         step_df = step_df %>%
-           mutate(steps_scssl = 1) %>%
-           mutate(time = floor_date(time, unit = "seconds")) %>%
-           group_by(time) %>%
-           summarize(steps_scssl = sum(steps_scssl, na.rm = TRUE)) %>%
-           ungroup()
-         steps = left_join(time_df, step_df, by = "time") %>%
-           mutate(across(steps_scssl, ~ ifelse(is.na(.x), 0, .x)))
-       } else {
-         steps =
-           time_df %>%
-           mutate(steps_scssl = 0)
-       }
-#
-       id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", file)
-       if (!file.exists(here::here("data", "reorganized", "clemson", id, "step_estimates"))) {
-         dir.create(here::here("data", "reorganized", "clemson", id, "step_estimates"))
-       }
-       fname_root = sub(".*Hz\\/(.+)-StepTimes.*", "\\1", stepfile)
-       fname = paste0(fname_root, "-steps_stepcountssl.csv")
-       readr::write_csv(steps,
-                        here::here("data", "reorganized", "clemson", id, "step_estimates",
-                                   fname))
-     })
+    function(file) {
+      df_times = readr::read_csv(file)
+      stepfile = list.files(here::here("results", "stepcount_ssl", "clemson",
+                                       sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                            full.names = TRUE,
+                            recursive = TRUE,
+                            pattern = "StepTimes.csv")
+      step_df = readr::read_csv(stepfile)
+      #
+      start = min(df_times$time)
+      end = max(df_times$time) + as.period(10, "seconds")
+      time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
+      #
+      if(nrow(step_df) > 0) {
+        step_df = step_df %>%
+          mutate(steps_scssl = 1) %>%
+          mutate(time = floor_date(time, unit = "seconds")) %>%
+          group_by(time) %>%
+          summarize(steps_scssl = sum(steps_scssl, na.rm = TRUE)) %>%
+          ungroup()
+        steps = left_join(time_df, step_df, by = "time") %>%
+          mutate(across(steps_scssl, ~ ifelse(is.na(.x), 0, .x)))
+      } else {
+        steps =
+          time_df %>%
+          mutate(steps_scssl = 0)
+      }
+      #
+      id = sub(".*clemson\\-(.+)\\-walk.*", "\\1", file)
+      if (!file.exists(here::here("data", "reorganized", "clemson", id, "step_estimates"))) {
+        dir.create(here::here("data", "reorganized", "clemson", id, "step_estimates"),
+                   recursive = TRUE)
+      }
+      fname_root = sub(".*Hz\\/(.+)-StepTimes.*", "\\1", stepfile)
+      fname = paste0(fname_root, "-steps_stepcountssl.csv")
+      readr::write_csv(steps,
+                       here::here("data", "reorganized", "clemson", id, "step_estimates",
+                                  fname))
+    })
 #
 map(.x = ox_csvs,
-     function(file) {
-       df_times = readr::read_csv(file)
-       stepfile = list.files(here::here("results", "stepcount_ssl", "oxwalk",
-                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
-                             full.names = TRUE,
-                             recursive = TRUE,
-                             pattern = "StepTimes.csv")
-       step_df = readr::read_csv(stepfile)
+    function(file) {
+      df_times = readr::read_csv(file)
+      stepfile = list.files(here::here("results", "stepcount_ssl", "oxwalk",
+                                       sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                            full.names = TRUE,
+                            recursive = TRUE,
+                            pattern = "StepTimes.csv")
+      step_df = readr::read_csv(stepfile)
+      #
+      start = min(df_times$time)
+      end = max(df_times$time) + as.period(10, "seconds")
+      time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
+      #
+      if(nrow(step_df) > 0) {
+        step_df = step_df %>%
+          mutate(steps_scssl = 1) %>%
+          mutate(time = floor_date(time, unit = "seconds")) %>%
+          group_by(time) %>%
+          summarize(steps_scssl = sum(steps_scssl, na.rm = TRUE)) %>%
+          ungroup()
+        steps = left_join(time_df, step_df, by = "time") %>%
+          mutate(across(steps_scssl, ~ ifelse(is.na(.x), 0, .x)))
+      } else {
+        steps =
+          time_df %>%
+          mutate(steps_scssl = 0)
+      }
+      #
+      id = sub(".*oxwalk\\-(.+)-r.*", "\\1", file)
+      if (!file.exists(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))) {
+        dir.create(here::here("data", "reorganized", "oxwalk", id, "step_estimates"),
+                   recursive = TRUE)
+      }
+      fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
+      fname = paste0(fname_root, "-steps_stepcountssl.csv")
+      readr::write_csv(steps,
+                       here::here("data", "reorganized", "oxwalk", id, "step_estimates",
+                                  fname))
+    })
 #
-       start = min(df_times$time)
-       end = max(df_times$time) + as.period(10, "seconds")
-       time_df = tibble(time = floor_date(seq(start, end, "sec"), unit = "seconds"))
 #
-       if(nrow(step_df) > 0) {
-         step_df = step_df %>%
-           mutate(steps_scssl = 1) %>%
-           mutate(time = floor_date(time, unit = "seconds")) %>%
-           group_by(time) %>%
-           summarize(steps_scssl = sum(steps_scssl, na.rm = TRUE)) %>%
-           ungroup()
-         steps = left_join(time_df, step_df, by = "time") %>%
-           mutate(across(steps_scssl, ~ ifelse(is.na(.x), 0, .x)))
-       } else {
-         steps =
-           time_df %>%
-           mutate(steps_scssl = 0)
-       }
-#
-       id = sub(".*oxwalk\\-(.+)-r.*", "\\1", file)
-       if (!file.exists(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))) {
-         dir.create(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))
-       }
-       fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
-       fname = paste0(fname_root, "-steps_stepcountssl.csv")
-       readr::write_csv(steps,
-                        here::here("data", "reorganized", "oxwalk", id, "step_estimates",
-                                   fname))
-     })
-#
-#
-map(.x = marea_csvs,
-     function(file) {
-       df_times = readr::read_csv(file)
-       stepfile = list.files(here::here("results", "stepcount_ssl", "marea",
-                                        sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
-                             full.names = TRUE,
-                             recursive = TRUE,
-                             pattern = "StepTimes.csv")
-       step_df = readr::read_csv(stepfile)
-       start = min(df_times$time)
-       end = max(df_times$time) + as.period(10, "seconds")
-       time_df = tibble(time = floor_date(seq(start, end, "sec"), unit =
-                                            "seconds"))
-#
-       if(nrow(step_df) > 0) {
-         step_df = step_df %>%
-           mutate(steps_scssl = 1) %>%
-           mutate(time = floor_date(time, unit = "seconds")) %>%
-           group_by(time) %>%
-           summarize(steps_scssl = sum(steps_scssl, na.rm = TRUE)) %>%
-           ungroup()
-         steps = left_join(time_df, step_df, by = "time") %>%
-           mutate(across(steps_scssl, ~ ifelse(is.na(.x), 0, .x)))
-       } else {
-         steps =
-           time_df %>%
-           mutate(steps_scssl = 0)
-       }
-       id = regmatches(file, gregexpr("(?<=a\\-)[a-zA-Z0-9]{3}", file, perl = TRUE))[[1]][1]
-       if (!file.exists(here::here("data", "reorganized", "marea", id, "step_estimates"))) {
-         dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"))
-       }
-       fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
-       fname = paste0(fname_root, "-steps_stepcountssl.csv")
-       readr::write_csv(steps,
-                        here::here("data", "reorganized", "marea", id, "step_estimates",
-                                   fname))
-     })
+if(length(marea_csvs)>0){
+  map(.x = marea_csvs,
+      function(file) {
+        df_times = readr::read_csv(file)
+        stepfile = list.files(here::here("results", "stepcount_ssl", "marea",
+                                         sub(".*Hz\\/(.+)-Steps.csv.*", "\\1", file)),
+                              full.names = TRUE,
+                              recursive = TRUE,
+                              pattern = "StepTimes.csv")
+        step_df = readr::read_csv(stepfile)
+        start = min(df_times$time)
+        end = max(df_times$time) + as.period(10, "seconds")
+        time_df = tibble(time = floor_date(seq(start, end, "sec"), unit =
+                                             "seconds"))
+        #
+        if(nrow(step_df) > 0) {
+          step_df = step_df %>%
+            mutate(steps_scssl = 1) %>%
+            mutate(time = floor_date(time, unit = "seconds")) %>%
+            group_by(time) %>%
+            summarize(steps_scssl = sum(steps_scssl, na.rm = TRUE)) %>%
+            ungroup()
+          steps = left_join(time_df, step_df, by = "time") %>%
+            mutate(across(steps_scssl, ~ ifelse(is.na(.x), 0, .x)))
+        } else {
+          steps =
+            time_df %>%
+            mutate(steps_scssl = 0)
+        }
+        id = regmatches(file, gregexpr("(?<=a\\-)[a-zA-Z0-9]{3}", file, perl = TRUE))[[1]][1]
+        if (!file.exists(here::here("data", "reorganized", "marea", id, "step_estimates"))) {
+          dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"),
+                     recursive = TRUE)
+        }
+        fname_root = sub(".*Hz\\/(.+)-Steps.*", "\\1", file)
+        fname = paste0(fname_root, "-steps_stepcountssl.csv")
+        readr::write_csv(steps,
+                         here::here("data", "reorganized", "marea", id, "step_estimates",
+                                    fname))
+      })
+}
+
 #
 rm(list = ls())
 
@@ -343,7 +352,8 @@ map(
 
 
     if (!file.exists(here::here("data", "reorganized", "clemson", id, "step_estimates"))) {
-      dir.create(here::here("data", "reorganized", "clemson", id, "step_estimates"))
+      dir.create(here::here("data", "reorganized", "clemson", id, "step_estimates"),
+                 recursive = TRUE)
     }
     fname_root = sub(".*clemson\\/(.+)1sec.*", "\\1", x)
     fname = paste0(fname_root, "-steps_actilife.csv")
@@ -388,7 +398,8 @@ if(length(files) > 0){
 
 
       if (!file.exists(here::here("data", "reorganized", "marea", id, "step_estimates"))) {
-        dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"))
+        dir.create(here::here("data", "reorganized", "marea", id, "step_estimates"),
+                   recursive = TRUE)
       }
       fname_root = sub(".*marea\\/(.+)1sec.*", "\\1", x)
       fname = paste0(fname_root, "-steps_actilife.csv")
@@ -439,7 +450,8 @@ map(
       select(time, steps_acti)
 
     if (!file.exists(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))) {
-      dir.create(here::here("data", "reorganized", "oxwalk", id, "step_estimates"))
+      dir.create(here::here("data", "reorganized", "oxwalk", id, "step_estimates"),
+                 recursive = TRUE)
     }
     fname_root = sub(".*oxwalk\\/(.+)1sec.*", "\\1", x)
     fname = paste0(fname_root, "-steps_actilife.csv")

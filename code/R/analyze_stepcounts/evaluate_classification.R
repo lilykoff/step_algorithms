@@ -1,9 +1,9 @@
 library(tidyverse)
 `%notin%` = Negate(`%in%`)
-
+library(paletteer)
 
 accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_bysubject.rds"))
-
+if(file.exists(here::here("data", "raw", "MAREA_dataset"))){
 # # supplemental classification table, wide
 # accuracy_df %>%
 #   filter(cat_activity != "oxwalk25" & cat_activity != "clemson_overall" &
@@ -18,7 +18,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
 #   select(algorithm, cat_activity, recall, precision, f1) %>%
 #   pivot_wider(names_from = cat_activity, values_from = recall:f1) %>%
 #   ungroup() %>%
-#   mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense")) %>%
+#   mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense")) %>%
 #   kableExtra::kable(align = "llll", booktabs = TRUE,  col.names =
 #                       c("Algorithm", rep(c("Regular", "Semiregular", "Irregular", "Regular", "Free-Living"), 3))) %>%
 #   kableExtra::add_header_above(c(" " = 1, "Clemson" = 3,
@@ -57,7 +57,17 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     kableExtra::kable_styling(latex_options = "scale_down")
 
   # main manuscript classification table
-
+  accuracy_df %>%
+    filter(cat_activity != "oxwalk25" & cat_activity != "clemson_overall" &
+             grepl("30", algorithm)) %>%
+    filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>% # remove the raw 30 hz verisense, just use reampled
+    group_by(algorithm, cat_activity) %>%
+    summarize(across(c(recall, prec, f1),
+                     list(mean = ~mean(.x),
+                          sd = ~ sd(.x)))) %>%
+    select(algorithm, cat_activity, ends_with("mean")) %>%
+    pivot_wider(names_from = cat_activity, values_from = ends_with("mean")) %>%
+    arrange(desc(f1_mean_clemson_walk_regular))
 
 
   tab_individual =
@@ -97,7 +107,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     left_join(tab_overall) %>%
     ungroup() %>%
     select(algorithm, starts_with("recall"), starts_with("precision"), starts_with("f1")) %>%
-    mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (original)", "Verisense (revised)")) %>%
+    mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense rev.")) %>%
     kableExtra::kable(align = "llll", booktabs = TRUE,  format = "latex", col.names =
                         c("Algorithm", "Clemson", "MAREA", "Oxwalk", "Overall",
                           "Clemson", "Oxwalk", "Overall",
@@ -159,7 +169,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
   labs = c("F1 Score", "Precision", "Recall")
   names(labs) = c("f1", "prec", "recall")
 
-  plot = overall %>%
+plot = overall %>%
     mutate(value= ifelse(name == "prec" & id_study == "marea", NA, value),
            cat_activity = "Overall") %>%
     ggplot(aes(x = factor(algorithm, levels = level_order), y = value, col = algorithm))+
@@ -167,8 +177,8 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     geom_jitter(width=.1, alpha=.5)+
     facet_grid(name ~ cat_activity,
                labeller = labeller(name = labs)) +
-    scale_color_brewer(palette  = "Dark2",name = "",
-                       labels = c("ActiLife", "ADEPT", "Oak","Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (original)", "Verisense (revised"))+
+    scale_color_paletteer_d("ggthemes::Tableau_10",name = "",
+                       labels = c("ActiLife", "ADEPT", "Oak","stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense (revised"))+
     theme_bw()+
     theme(legend.position = "none",
           axis.text.x = element_text(angle = 30, hjust = 1, vjust =1),
@@ -177,7 +187,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
           legend.text = element_text(size = 10))+
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
-    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense (Original)", "Verisense (Revised)", "Stepcount (RF)", "Stepcount (SSL)"))
+    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense orig.", "Verisense rev.", "stepcount RF", "stepcount SSL"))
   svg(here::here("manuscript/figures", "boxplot_overall.svg"))
   plot
   dev.off()
@@ -197,7 +207,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
                labeller = labeller(name = labs,
                                    cat_activity = labs2)) +
     scale_color_brewer(palette  = "Dark2",name = "",
-                       labels = c("ActiLife", "ADEPT", "Oak","Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (original)", "Verisense (revised)"))+
+                       labels = c("ActiLife", "ADEPT", "Oak","stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense rev."))+
     theme_bw()+
     theme(legend.position = "none",
           # legend.position = c(.49, .6),
@@ -210,7 +220,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
           legend.text = element_text(size = 12))+
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
-    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense (Original)", "Verisense (Revised)", "Stepcount (RF)", "Stepcount (SSL)"))
+    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense orig.", "Verisense rev.", "stepcount RF", "stepcount SSL"))
 
   svg(here::here("manuscript/figures", "boxplot_all.svg"))
   plot
@@ -461,7 +471,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     left_join(tab_overall) %>%
     ungroup() %>%
     select(algorithm, starts_with("recall"), starts_with("precision"), starts_with("f1")) %>%
-    mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (original)", "Verisense (revised)")) %>%
+    mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense rev.")) %>%
     kableExtra::kable(align = "llll", booktabs = TRUE,  format = "latex", col.names =
                         c("Algorithm", "Clemson", "Oxwalk", "Overall",
                           "Clemson", "Oxwalk", "Overall",
@@ -529,7 +539,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
     facet_grid(name ~ cat_activity,
                labeller = labeller(name = labs)) +
     scale_color_brewer(palette  = "Dark2",name = "",
-                       labels = c("ActiLife", "ADEPT", "Oak","Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (original)", "Verisense (revised"))+
+                       labels = c("ActiLife", "ADEPT", "Oak","stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense (revised"))+
     theme_bw()+
     theme(legend.position = "none",
           axis.text.x = element_text(angle = 30, hjust = 1, vjust =1),
@@ -538,7 +548,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
           legend.text = element_text(size = 10))+
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
-    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense (Original)", "Verisense (Revised)", "Stepcount (RF)", "Stepcount (SSL)"))
+    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense orig.", "Verisense rev.", "stepcount RF", "stepcount SSL"))
   svg(here::here("manuscript/figures", "boxplot_overall.svg"))
   plot
   dev.off()
@@ -558,7 +568,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
                labeller = labeller(name = labs,
                                    cat_activity = labs2)) +
     scale_color_brewer(palette  = "Dark2",name = "",
-                       labels = c("ActiLife", "ADEPT", "Oak","Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (original)", "Verisense (revised)"))+
+                       labels = c("ActiLife", "ADEPT", "Oak","stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense rev."))+
     theme_bw()+
     theme(legend.position = "none",
           # legend.position = c(.49, .6),
@@ -571,7 +581,7 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
           legend.text = element_text(size = 12))+
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
-    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense (Original)", "Verisense (Revised)", "Stepcount (RF)", "Stepcount (SSL)"))
+    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense orig.", "Verisense rev.", "stepcount RF", "stepcount SSL"))
 
   svg(here::here("manuscript/figures", "boxplot_all.svg"))
   plot
