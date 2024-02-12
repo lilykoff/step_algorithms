@@ -1,6 +1,20 @@
 library(tidyverse)
 library(ggpmisc)
+paletteer::paletteer_d("colorBlindness::paletteMartin")
+coladept = "#DB6D00FF"
+colsdt = "#920000FF"
+coloak = "#FF6DB6FF"
+colacti = "#490092FF"
+colvso = "#006DDBFF"
+colvsr = "#6DB6FFFF"
+colscr = "#004949FF"
+colscs= "#009292FF"
 
+
+manual_cols = c("steps_adept" = coladept, "steps_sdt" = colsdt,
+                              "steps_oak" = coloak, "steps_acti" = colacti,
+                              "steps_vsores" = colvso, "steps_vsrres" = colvsr,
+                              "steps_scssl" = colscs,  "steps_scrf" = colscr)
 # marea_nested  = readRDS("~/Documents/step_algorithms/data/processed/marea_nested_all.rds")
 marea = read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz")) %>%
   select(-contains("raw"))
@@ -8,7 +22,7 @@ marea = read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.cs
 
 # speed vs bias figure
 # bias is estimated per minute
-labs = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (Original)", "Verisense (Revised)")
+labs = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense original", "Verisense revised")
 
 names(labs) = c("steps_acti", "steps_adept", "steps_oak",  "steps_scrf", "steps_scssl","steps_sdt", "steps_vsores", "steps_vsrres")
 
@@ -36,7 +50,7 @@ marea %>%
   labs(x = "Speed (km/hr)", y = "Estimated Bias per Minute")+
   scale_x_continuous(breaks=seq(4,8,0.4))+
   geom_hline(aes(yintercept = 0))+
-  scale_color_brewer(palette = "Dark2")
+  scale_color_manual(values = manual_cols)
 
 # with shapes for each activity
 plt=marea %>%
@@ -63,7 +77,7 @@ plt=marea %>%
   scale_x_continuous(breaks=seq(4,8,0.8))+
   scale_shape_manual(name = "", values = c(17, 16), labels = c("Run", "Walk"))+
   geom_hline(aes(yintercept = 0))+
-  scale_color_brewer(palette = "Dark2", guide = "none")+
+ scale_color_manual(values = manual_cols, guide = "none")+
   theme(legend.position = c(.09, .2),
         legend.title = element_blank(),
         legend.margin = margin(1,1,1,1),

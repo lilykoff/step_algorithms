@@ -2,6 +2,22 @@ library(tidyverse)
 `%notin%` = Negate(`%in%`)
 library(paletteer)
 
+# custom color palette
+paletteer::paletteer_d("colorBlindness::paletteMartin")
+coladept = "#DB6D00FF"
+colsdt = "#920000FF"
+coloak = "#FF6DB6FF"
+colacti = "#490092FF"
+colvso = "#006DDBFF"
+colvsr = "#6DB6FFFF"
+colscr = "#004949FF"
+colscs= "#009292FF"
+
+manual_cols = c("steps_adept_30" = coladept, "steps_sdt_30" = colsdt,
+                                "steps_oak_30" = coloak, "steps_acti_30" = colacti,
+                                "steps_vsores_30" = colvso, "steps_vsrres_30" = colvsr,
+                                "steps_scssl_30" = colscs,  "steps_scrf_30" = colscr)
+
 accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_bysubject.rds"))
 if(file.exists(here::here("data", "raw", "MAREA_dataset"))){
 # # supplemental classification table, wide
@@ -57,17 +73,17 @@ if(file.exists(here::here("data", "raw", "MAREA_dataset"))){
     kableExtra::kable_styling(latex_options = "scale_down")
 
   # main manuscript classification table
-  accuracy_df %>%
-    filter(cat_activity != "oxwalk25" & cat_activity != "clemson_overall" &
-             grepl("30", algorithm)) %>%
-    filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>% # remove the raw 30 hz verisense, just use reampled
-    group_by(algorithm, cat_activity) %>%
-    summarize(across(c(recall, prec, f1),
-                     list(mean = ~mean(.x),
-                          sd = ~ sd(.x)))) %>%
-    select(algorithm, cat_activity, ends_with("mean")) %>%
-    pivot_wider(names_from = cat_activity, values_from = ends_with("mean")) %>%
-    arrange(desc(f1_mean_clemson_walk_regular))
+  # accuracy_df %>%
+  #   filter(cat_activity != "oxwalk25" & cat_activity != "clemson_overall" &
+  #            grepl("30", algorithm)) %>%
+  #   filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>% # remove the raw 30 hz verisense, just use reampled
+  #   group_by(algorithm, cat_activity) %>%
+  #   summarize(across(c(recall, prec, f1),
+  #                    list(mean = ~mean(.x),
+  #                         sd = ~ sd(.x)))) %>%
+  #   select(algorithm, cat_activity, ends_with("mean")) %>%
+  #   pivot_wider(names_from = cat_activity, values_from = ends_with("mean")) %>%
+  #   arrange(desc(f1_mean_clemson_walk_regular))
 
 
   tab_individual =
@@ -177,7 +193,7 @@ plot = overall %>%
     geom_jitter(width=.1, alpha=.5)+
     facet_grid(name ~ cat_activity,
                labeller = labeller(name = labs)) +
-    scale_color_paletteer_d("ggthemes::Tableau_10",name = "",
+    scale_color_manual(values = manual_cols, name = "",
                        labels = c("ActiLife", "ADEPT", "Oak","stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense (revised"))+
     theme_bw()+
     theme(legend.position = "none",
@@ -206,7 +222,7 @@ plot = overall %>%
     facet_grid(name ~ cat_activity,
                labeller = labeller(name = labs,
                                    cat_activity = labs2)) +
-    scale_color_brewer(palette  = "Dark2",name = "",
+    scale_color_manual(values = manual_cols, name = "",
                        labels = c("ActiLife", "ADEPT", "Oak","stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense rev."))+
     theme_bw()+
     theme(legend.position = "none",
@@ -221,13 +237,39 @@ plot = overall %>%
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
     scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense orig.", "Verisense rev.", "stepcount RF", "stepcount SSL"))
-
   svg(here::here("manuscript/figures", "boxplot_all.svg"))
   plot
   dev.off()
 
+  plot =
+    recog_stats %>%
+    mutate(value= ifelse(name == "prec" & id_study == "marea", NA, value)) %>%
+    mutate(cat_activity = factor(cat_activity, levels = c("clemson_overall", "marea", "oxwalk100"))) %>%
+    ggplot(aes(x = factor(algorithm, levels = level_order), y = value, col = algorithm))+
+    geom_boxplot(outlier.shape = NA, position = position_dodge())+
+    geom_jitter(width=.1, alpha=.5)+
+    facet_grid(name ~ cat_activity,
+               labeller = labeller(name = labs,
+                                   cat_activity = labs2)) +
+    scale_color_manual(values = manual_cols, name = "",
+                       labels = c("ActiLife", "ADEPT", "Oak","stepcount RF", "stepcount SSL", "SDT", "Verisense original", "Verisense revised"))+
+    theme_bw()+
+    theme(legend.position = c(.5 ,.5),
+          legend.justification = c("right", "top"),
+          legend.box.just = "right",
+          legend.margin = margin(1, 1, 1, 1),
+          axis.text.x = element_text(angle = 30, hjust = 1, vjust =1),
+          strip.text = element_text(size = 12),
+          axis.text = element_text(size = 10),
+          legend.text = element_text(size = 12))+
+    labs(x = "", y = "")+
+    guides(colour = guide_legend(nrow = 4))+
+    scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense original", "Verisense revised", "stepcount RF", "stepcount SSL"))
 
 
+  svg(here::here("manuscript/figures", "boxplot_legend.svg"))
+  plot
+  dev.off()
 
   # significance testing
   # generate tile plots with p values for ease of writing results

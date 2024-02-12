@@ -158,7 +158,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     mutate(type = ifelse(strsplit(name, "_")[[1]][3]=="30", "resampled", "raw"),
            algorithm = strsplit(name, "_")[[1]][2]) %>%
     select(-name)
-  labs = c("Stepcount (RF)", "Stepcount (SSL)")
+  labs = c("stepcount RF", "stepcount SSL")
   names(labs) = c("scrf", "scssl")
 
   # means = summary_df  %>%
@@ -223,7 +223,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     mutate(srate = strsplit(name, "_")[[1]][3],
            algorithm = strsplit(name, "_")[[1]][2]) %>%
     select(-name)
-  meth = c("Original", "Revised")
+  meth = c("Verisense original", "Verisense revised")
   names(meth) = c("orig", "rev")
   summary_df %>%
     mutate(srate = factor(srate, levels = c("15hz", "30hz", "100hz"))) %>%
@@ -265,7 +265,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     mutate(srate = strsplit(name, "_")[[1]][3],
            algorithm = strsplit(name, "_")[[1]][2]) %>%
     select(-name)
-  meth = c("Original", "Revised")
+  meth = c("Verisense original", "Verisense revised")
   names(meth) = c("orig", "rev")
   summary_df %>%
     mutate(srate = factor(srate, levels = c("15hz", "25hz", "30hz"))) %>%
@@ -308,7 +308,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     mutate(srate = strsplit(name, "_")[[1]][3],
            algorithm = strsplit(name, "_")[[1]][2]) %>%
     select(-name)
-  meth = c("Original", "Revised")
+  meth = c("Verisense original", "Verisense revised")
   names(meth) = c("orig", "rev")
   plot = summary_df %>%
     mutate(srate = factor(srate, levels = c("15hz", "30hz"))) %>%

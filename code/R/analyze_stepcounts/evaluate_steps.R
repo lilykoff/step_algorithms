@@ -1,5 +1,19 @@
 library(tidyverse)
 `%notin%` = Negate(`%in%`)
+paletteer::paletteer_d("colorBlindness::paletteMartin")
+coladept = "#DB6D00FF"
+colsdt = "#920000FF"
+coloak = "#FF6DB6FF"
+colacti = "#490092FF"
+colvso = "#006DDBFF"
+colvsr = "#6DB6FFFF"
+colscr = "#004949FF"
+colscs= "#009292FF"
+
+manual_cols = c("adept" = coladept, "sdt" = colsdt,
+                "oak" = coloak, "acti" = colacti,
+                "vsores" = colvso, "vsrres" = colvsr,
+                "scssl" = colscs,  "scrf" = colscr)
 if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz"))){
   clemson = readr::read_csv(here::here("results/all_algorithms/clemson_step_estimates_1sec.csv.gz"))
   # just use 100 hz data from oxwalk for this part
@@ -108,8 +122,8 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
     filter(cat_activity != "oxwalk25" &
            (grepl("30", algorithm) | grepl("truth", algorithm)))
-  labs = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense (original)",
-           "Verisense (revised)")
+  labs = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense original",
+           "Verisense revised")
 
   names(labs) = c("acti", "adept", "oak",  "scrf", "scssl","sdt", "vsores", "vsrres")
 
@@ -127,7 +141,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     ggplot(aes(x = steps_truth, y = value, col = method, shape = cat_activity))+
     geom_point(size = 2) +
     facet_grid(.~method,labeller = labeller(method = labs))+
-    scale_color_brewer(palette = "Dark2", name = "", guide = "none")+
+    scale_color_manual(values  = manual_cols, name = "", guide = "none")+
     scale_shape_discrete(name = "", labels = c("Walk regular", "Walk semiregular", "Walk irregular"))+
     theme_bw()+
     geom_abline()+
@@ -157,7 +171,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     ggplot(aes(x = steps_truth, y = value, col = method))+
     geom_point(size = 2) +
     facet_wrap(method~.,nrow = 1,labeller = labeller(method = labs))+
-    scale_color_brewer(palette = "Dark2", name = "", guide = "none")+
+    scale_color_manual(values  = manual_cols, name = "", guide = "none")+
     theme_bw()+
     geom_abline()+
     scale_x_continuous(limits = c(0, 6500))+
@@ -186,7 +200,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     ggplot(aes(x = steps_truth, y = value, col = method, shape = activity))+
     geom_point(size = 2) +
     facet_grid(.~method,labeller = labeller(method = labs))+
-    scale_color_brewer(palette = "Dark2", name = "", guide = "none")+
+    scale_color_manual(values  = manual_cols, name = "", guide = "none")+
     scale_shape_discrete(name = "")+
     theme_bw()+
     geom_abline()+
