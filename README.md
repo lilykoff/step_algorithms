@@ -52,10 +52,14 @@ To reproduce the results of our analysis completely, follow the steps below.
 
 
 ### Requirements 
-+ Python 3 (Python 3.6 or higher)
++ Python 3 (Python 3.11 or higher)
 + snakemake 
 + R (version 4.0.x)
-+ Stepcount
++ stepcount
++ conda 
+
+To install conda follow instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
+
 
 To install Python follow instructions [here](https://docs.anaconda.com/free/anaconda/install/index.html)
 
@@ -81,7 +85,7 @@ conda activate stepcount
 ```
 
 ```
-pip install git+https://github.com/OxWearables/stepcount.git@1afed4edaeed1d4b3483c60c0b3d8595198b863b 
+pip install git+https://github.com/OxWearables/stepcount.git@9d1cb3305d1a2dcf1dc10944120c6ee29999fd99
 
 ```
 
