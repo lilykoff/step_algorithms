@@ -176,117 +176,122 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     labs(x = "True Steps ",
          y = "Difference (True Steps - Predicted Steps)",
          title = "")+
-    scale_color_manual(values = c("#5773CC", "#FFB900"), labels = c("15Hz", "30Hz"), name = "Sample Rate")+
+    # scale_color_manual(values = c("#5773CC", "#FFB900"), labels = c("15Hz", "30Hz"), name = "Sample Rate")+
+    scale_color_manual(values = c("#008600", "#860086"), labels = c("15Hz", "30Hz"), name = "Sample Rate")+
     theme(legend.position = c(.2, .9),
           legend.text = element_text(size = 12),
           legend.margin = margin(1,1,1,1),
           axis.text= element_text(size = 10),
           axis.title = element_text(size = 12),
           strip.text = element_text(size = 12),
-          plot.title = element_text(size = 13))
+          plot.title = element_text(size = 13))+
+    scale_y_continuous(limits=c(-350,2100))
 
   svg(here::here("manuscript/figures", "bland_altman_sc.svg"))
   plt
   dev.off()
-  clemson %>%
-    group_by(id_subject) %>%
-    select(id_subject, contains("truth"), contains("sc"), "steps_vsoraw", "steps_vsoraw_30", "steps_vsrraw", "steps_vsrraw_30") %>%
-    summarize(across(starts_with("steps"),
-                     ~ sum(.x))) %>%
-    pivot_longer(cols = steps_scssl:steps_vsrraw_30) %>%
-    rowwise() %>%
-    mutate(type = ifelse(grepl("30", name), "resampled", "raw"),
-           algorithm = strsplit(name, "_")[[1]][2]) %>%
-    pivot_wider(names_from=type,values_from=value,id_cols=c(id_subject,algorithm)) %>%
-    ggplot(aes(x = raw,y=resampled, col = algorithm))+
-    facet_grid(.~algorithm)+
-    geom_point()+
-    theme_bw()+
-    geom_abline()
-
-  summary_df =
-    oxwalk %>% filter(sample_rate==100) %>%
-    select(id_subject, id_study, contains("truth"), contains("vs")) %>%
-    group_by(id_subject) %>%
-    summarize(across(starts_with("steps"),
-                     ~ sum(.x))) %>%
-    select(-c(ends_with("res_30"))) %>%
-    magrittr::set_colnames(c("id_subject", "steps_truth", "steps_orig_100hz", "steps_rev_100hz",
-                             "steps_orig_15hz", "steps_rev_15hz", "steps_orig_30hz","steps_rev_30hz")) %>%
-    rowwise() %>%
-    mutate(across(starts_with("steps") & !contains("truth"),
-                  list(difference = ~steps_truth - .x,
-                       truth = ~steps_truth))) %>%
-    select(id_subject, steps_truth, ends_with("difference")) %>%
-    pivot_longer(cols = ends_with("difference")) %>%
-    rowwise() %>%
-    mutate(srate = strsplit(name, "_")[[1]][3],
-           algorithm = strsplit(name, "_")[[1]][2]) %>%
-    select(-name)
-  meth = c("Verisense original", "Verisense revised")
-  names(meth) = c("orig", "rev")
-  summary_df %>%
-    mutate(srate = factor(srate, levels = c("15hz", "30hz", "100hz"))) %>%
-    ggplot() +
-    geom_point(aes(x = steps_truth, y = value, col = srate), size = 2)+
-    facet_wrap(.~algorithm, labeller = labeller(algorithm = meth)) +
-    theme_bw()+
-    geom_hline(aes(yintercept = 0), col = "darkgrey", linetype  = 2)+
-    labs(x = "True Steps ",
-         y = "Difference (True Steps - Predicted Steps)",
-         title = "Bland Altman Plot for Steps Estimated by
-       Verisense on Raw vs. Resampled Data")+
-    scale_color_manual(values = c("#5773CC", "#FFB900", "#802268"),
-                       name = "Sample Rate", labels = c("15", "30", "100")) +
-    theme(legend.position = c(.2, .92),
-          legend.text = element_text(size = 12),
-          legend.margin = margin(0,1,1,1),
-          axis.text= element_text(size = 10),
-          axis.title = element_text(size = 12),
-          strip.text = element_text(size = 12),
-          plot.title = element_text(size = 13))
-
-  summary_df =
-    oxwalk %>% filter(sample_rate==25) %>%
-    select(id_subject, id_study, contains("truth"), contains("vs")) %>%
-    group_by(id_subject) %>%
-    summarize(across(starts_with("steps"),
-                     ~ sum(.x))) %>%
-    select(-c(ends_with("res_30"))) %>%
-    magrittr::set_colnames(c("id_subject", "steps_truth", "steps_orig_25hz", "steps_rev_25hz",
-                             "steps_orig_15hz", "steps_rev_15hz", "steps_orig_30hz","steps_rev_30hz")) %>%
-    rowwise() %>%
-    mutate(across(starts_with("steps") & !contains("truth"),
-                  list(difference = ~steps_truth - .x,
-                       truth = ~steps_truth))) %>%
-    select(id_subject, steps_truth, ends_with("difference")) %>%
-    pivot_longer(cols = ends_with("difference")) %>%
-    rowwise() %>%
-    mutate(srate = strsplit(name, "_")[[1]][3],
-           algorithm = strsplit(name, "_")[[1]][2]) %>%
-    select(-name)
-  meth = c("Verisense original", "Verisense revised")
-  names(meth) = c("orig", "rev")
-  summary_df %>%
-    mutate(srate = factor(srate, levels = c("15hz", "25hz", "30hz"))) %>%
-    ggplot() +
-    geom_point(aes(x = steps_truth, y = value, col = srate), size = 2)+
-    facet_wrap(.~algorithm, labeller = labeller(algorithm = meth)) +
-    theme_bw()+
-    geom_hline(aes(yintercept = 0), col = "darkgrey", linetype  = 2)+
-    labs(x = "True Steps ",
-         y = "Difference (True Steps - Predicted Steps)",
-         title = "Bland Altman Plot for Steps Estimated by
-       Verisense on Raw vs. Resampled Data")+
-    scale_color_manual(values = c("#5773CC", "#FFB900", "#802268"),
-                       name = "Sample Rate", labels = c("15", "25", "30")) +
-    theme(legend.position = c(.2, .92),
-          legend.text = element_text(size = 12),
-          legend.margin = margin(0,1,1,1),
-          axis.text= element_text(size = 10),
-          axis.title = element_text(size = 12),
-          strip.text = element_text(size = 12),
-          plot.title = element_text(size = 13))
+  svg(here::here("manuscript/figures", "bland_altman_both.svg"))
+  cowplot::plot_grid(plt, plot, nrow = 1)
+  dev.off()
+  # clemson %>%
+  #   group_by(id_subject) %>%
+  #   select(id_subject, contains("truth"), contains("sc"), "steps_vsoraw", "steps_vsoraw_30", "steps_vsrraw", "steps_vsrraw_30") %>%
+  #   summarize(across(starts_with("steps"),
+  #                    ~ sum(.x))) %>%
+  #   pivot_longer(cols = steps_scssl:steps_vsrraw_30) %>%
+  #   rowwise() %>%
+  #   mutate(type = ifelse(grepl("30", name), "resampled", "raw"),
+  #          algorithm = strsplit(name, "_")[[1]][2]) %>%
+  #   pivot_wider(names_from=type,values_from=value,id_cols=c(id_subject,algorithm)) %>%
+  #   ggplot(aes(x = raw,y=resampled, col = algorithm))+
+  #   facet_grid(.~algorithm)+
+  #   geom_point()+
+  #   theme_bw()+
+  #   geom_abline()
+  #
+  # summary_df =
+  #   oxwalk %>% filter(sample_rate==100) %>%
+  #   select(id_subject, id_study, contains("truth"), contains("vs")) %>%
+  #   group_by(id_subject) %>%
+  #   summarize(across(starts_with("steps"),
+  #                    ~ sum(.x))) %>%
+  #   select(-c(ends_with("res_30"))) %>%
+  #   magrittr::set_colnames(c("id_subject", "steps_truth", "steps_orig_100hz", "steps_rev_100hz",
+  #                            "steps_orig_15hz", "steps_rev_15hz", "steps_orig_30hz","steps_rev_30hz")) %>%
+  #   rowwise() %>%
+  #   mutate(across(starts_with("steps") & !contains("truth"),
+  #                 list(difference = ~steps_truth - .x,
+  #                      truth = ~steps_truth))) %>%
+  #   select(id_subject, steps_truth, ends_with("difference")) %>%
+  #   pivot_longer(cols = ends_with("difference")) %>%
+  #   rowwise() %>%
+  #   mutate(srate = strsplit(name, "_")[[1]][3],
+  #          algorithm = strsplit(name, "_")[[1]][2]) %>%
+  #   select(-name)
+  # meth = c("Verisense original", "Verisense revised")
+  # names(meth) = c("orig", "rev")
+  # summary_df %>%
+  #   mutate(srate = factor(srate, levels = c("15hz", "30hz", "100hz"))) %>%
+  #   ggplot() +
+  #   geom_point(aes(x = steps_truth, y = value, col = srate), size = 2)+
+  #   facet_wrap(.~algorithm, labeller = labeller(algorithm = meth)) +
+  #   theme_bw()+
+  #   geom_hline(aes(yintercept = 0), col = "darkgrey", linetype  = 2)+
+  #   labs(x = "True Steps ",
+  #        y = "Difference (True Steps - Predicted Steps)",
+  #        title = "Bland Altman Plot for Steps Estimated by
+  #      Verisense on Raw vs. Resampled Data")+
+  #   scale_color_manual(values = c("#5773CC", "#FFB900", "#802268"),
+  #                      name = "Sample Rate", labels = c("15", "30", "100")) +
+  #   theme(legend.position = c(.2, .92),
+  #         legend.text = element_text(size = 12),
+  #         legend.margin = margin(0,1,1,1),
+  #         axis.text= element_text(size = 10),
+  #         axis.title = element_text(size = 12),
+  #         strip.text = element_text(size = 12),
+  #         plot.title = element_text(size = 13))
+  #
+  # summary_df =
+  #   oxwalk %>% filter(sample_rate==25) %>%
+  #   select(id_subject, id_study, contains("truth"), contains("vs")) %>%
+  #   group_by(id_subject) %>%
+  #   summarize(across(starts_with("steps"),
+  #                    ~ sum(.x))) %>%
+  #   select(-c(ends_with("res_30"))) %>%
+  #   magrittr::set_colnames(c("id_subject", "steps_truth", "steps_orig_25hz", "steps_rev_25hz",
+  #                            "steps_orig_15hz", "steps_rev_15hz", "steps_orig_30hz","steps_rev_30hz")) %>%
+  #   rowwise() %>%
+  #   mutate(across(starts_with("steps") & !contains("truth"),
+  #                 list(difference = ~steps_truth - .x,
+  #                      truth = ~steps_truth))) %>%
+  #   select(id_subject, steps_truth, ends_with("difference")) %>%
+  #   pivot_longer(cols = ends_with("difference")) %>%
+  #   rowwise() %>%
+  #   mutate(srate = strsplit(name, "_")[[1]][3],
+  #          algorithm = strsplit(name, "_")[[1]][2]) %>%
+  #   select(-name)
+  # meth = c("Verisense original", "Verisense revised")
+  # names(meth) = c("orig", "rev")
+  # summary_df %>%
+  #   mutate(srate = factor(srate, levels = c("15hz", "25hz", "30hz"))) %>%
+  #   ggplot() +
+  #   geom_point(aes(x = steps_truth, y = value, col = srate), size = 2)+
+  #   facet_wrap(.~algorithm, labeller = labeller(algorithm = meth)) +
+  #   theme_bw()+
+  #   geom_hline(aes(yintercept = 0), col = "darkgrey", linetype  = 2)+
+  #   labs(x = "True Steps ",
+  #        y = "Difference (True Steps - Predicted Steps)",
+  #        title = "Bland Altman Plot for Steps Estimated by
+  #      Verisense on Raw vs. Resampled Data")+
+  #   scale_color_manual(values = c("#5773CC", "#FFB900", "#802268"),
+  #                      name = "Sample Rate", labels = c("15", "25", "30")) +
+  #   theme(legend.position = c(.2, .92),
+  #         legend.text = element_text(size = 12),
+  #         legend.margin = margin(0,1,1,1),
+  #         axis.text= element_text(size = 10),
+  #         axis.title = element_text(size = 12),
+  #         strip.text = element_text(size = 12),
+  #         plot.title = element_text(size = 13))
 
 
   summary_df =
@@ -308,7 +313,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     mutate(srate = strsplit(name, "_")[[1]][3],
            algorithm = strsplit(name, "_")[[1]][2]) %>%
     select(-name)
-  meth = c("Verisense original", "Verisense revised")
+  meth = c("Verisense* original", "Verisense* revised")
   names(meth) = c("orig", "rev")
   plot = summary_df %>%
     mutate(srate = factor(srate, levels = c("15hz", "30hz"))) %>%
@@ -320,16 +325,17 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     labs(x = "True Steps ",
          y = "Difference (True Steps - Predicted Steps)",
          title = "")+
-    scale_color_manual(values = c("#5773CC", "#FFB900"),
-                       name = "Sample Rate", labels = c("15", "30")) +
+    # scale_color_manual(values = c("#5773CC", "#FFB900"),
+    #                    name = "Sample Rate", labels = c("15", "30")) +
+    scale_color_manual(values = c("#008600", "#860086"), labels = c("15Hz", "30Hz"), name = "Sample Rate")+
     theme(legend.position = c(.2, .92),
           legend.text = element_text(size = 12),
           legend.margin = margin(1,1,1,1),
           axis.text= element_text(size = 10),
           axis.title = element_text(size = 12),
           strip.text = element_text(size = 12),
-          plot.title = element_text(size = 13))
-
+          plot.title = element_text(size = 13))+
+    scale_y_continuous(limits=c(-350,2100))
 
   svg(here::here("manuscript/figures", "bland_altman_vs.svg"))
   plot

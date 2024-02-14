@@ -59,9 +59,9 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
       metric == "ape" ~ paste0(sprintf(value_mean, fmt = "%#.1f"), " (", sprintf(value_sd, fmt = "%.0f"), ")"))
     ) %>%
     select(algorithm, cat_activity, mean, metric) %>%
-    pivot_wider(names_from = c(cat_activity,metric), values_from = mean) %>%
-    mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT",
-                         "Verisense (original)", "Verisense (revised)"))
+    pivot_wider(names_from = c(cat_activity), values_from = mean)
+    # mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT",
+    #                      "Verisense (original)", "Verisense (revised)"))
 
   tab_overall =
     step_df %>%
@@ -77,19 +77,18 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
       metric == "ape" ~ paste0(sprintf(value_mean, fmt = "%#.1f"), " (", sprintf(value_sd, fmt = "%.0f"), ")"))
     ) %>%
     select(algorithm, mean, metric) %>%
-    mutate(name = "overall") %>%
-    pivot_wider(names_from = c(name, metric), values_from = mean) %>%
-    mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT",
-                         "Verisense (original)", "Verisense (revised)"))
+    rename(overall = mean)
+    # pivot_wider(names_from = c(name, metric), values_from = mean) %>%
+    # mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT",
+    #                      "Verisense (original)", "Verisense (revised)"))
 
   tab_individual %>%
-    left_join(tab_overall) %>%
-    select(algorithm, ends_with("ape"), ends_with("bias")) %>%
-    kableExtra::kable(align = "llll",booktabs = TRUE, format = "latex", col.names =
-                      c("Algorithm", rep(c("Clemson", "MAREA", "OxWalk", "Overall"), 2))) %>%
-    kableExtra::add_header_above(c(" " = 1, "APE" = 4, "Bias" = 4)) %>%
-    kableExtra::kable_styling(latex_options = "scale_down")
-
+    left_join(tab_overall, by = c("metric", "algorithm")) %>%
+  select(metric, algorithm, clemson_overall, marea, oxwalk100, overall) %>%
+      kableExtra::kable(align = "llllll", booktabs = TRUE,  format = "latex", col.names =
+                          c("Metric", "Algorithm", "Clemson", "MAREA", "OxWalk", "Overall")) %>%
+      kableExtra::collapse_rows(columns = 1:2, valign = "top") %>%
+      kableExtra::kable_styling(latex_options = "scale_down")
   # supplemental table (long)
   step_df %>%
     filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>% # remove the raw 30 hz verisense, just use reampled

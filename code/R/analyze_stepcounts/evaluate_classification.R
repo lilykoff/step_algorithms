@@ -72,19 +72,6 @@ if(file.exists(here::here("data", "raw", "MAREA_dataset"))){
                                    "Clemson" = 3, "OxWalk" = 1))  %>%
     kableExtra::kable_styling(latex_options = "scale_down")
 
-  # main manuscript classification table
-  # accuracy_df %>%
-  #   filter(cat_activity != "oxwalk25" & cat_activity != "clemson_overall" &
-  #            grepl("30", algorithm)) %>%
-  #   filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>% # remove the raw 30 hz verisense, just use reampled
-  #   group_by(algorithm, cat_activity) %>%
-  #   summarize(across(c(recall, prec, f1),
-  #                    list(mean = ~mean(.x),
-  #                         sd = ~ sd(.x)))) %>%
-  #   select(algorithm, cat_activity, ends_with("mean")) %>%
-  #   pivot_wider(names_from = cat_activity, values_from = ends_with("mean")) %>%
-  #   arrange(desc(f1_mean_clemson_walk_regular))
-
 
   tab_individual =
     accuracy_df %>%
@@ -100,8 +87,9 @@ if(file.exists(here::here("data", "raw", "MAREA_dataset"))){
            precision = paste0(sprintf(prec_mean, fmt = "%#.2f"), " (", sprintf(prec_sd, fmt = "%#.2f"), ")"),
            f1 = paste0(sprintf(f1_mean, fmt = "%#.2f"), " (", sprintf(f1_sd, fmt = "%#.2f"), ")")) %>%
     select(algorithm, cat_activity, recall, precision, f1) %>%
-    pivot_wider(names_from = cat_activity, values_from = recall:f1) %>%
-    select(-precision_marea)
+    pivot_longer(recall:f1) %>%
+    pivot_wider(names_from = cat_activity, values_from = value) %>%
+    mutate(marea = ifelse(name == "precision", NA, marea))
 
   tab_overall =
     accuracy_df %>%
@@ -117,20 +105,30 @@ if(file.exists(here::here("data", "raw", "MAREA_dataset"))){
            precision = paste0(sprintf(prec_mean, fmt = "%#.2f"), " (", sprintf(prec_sd, fmt = "%#.2f"), ")"),
            f1 = paste0(sprintf(f1_mean, fmt = "%#.2f"), " (", sprintf(f1_sd, fmt = "%#.2f"), ")")) %>%
     select(algorithm, recall, precision, f1) %>%
-    rename_with(~str_c(., "_overall"), .cols = -algorithm)
+    # rename_with(~str_c(., "_overall"), .cols = -algorithm) %>%
+    pivot_longer(recall:f1) %>%
+    rename(overall = value)
 
   tab_individual %>%
     left_join(tab_overall) %>%
-    ungroup() %>%
-    select(algorithm, starts_with("recall"), starts_with("precision"), starts_with("f1")) %>%
-    mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense rev.")) %>%
-    kableExtra::kable(align = "llll", booktabs = TRUE,  format = "latex", col.names =
-                        c("Algorithm", "Clemson", "MAREA", "Oxwalk", "Overall",
-                          "Clemson", "Oxwalk", "Overall",
-                          "Clemson", "MAREA", "Oxwalk", "Overall")) %>%
-    kableExtra::add_header_above(c(" " = 1, "Recall" = 4,
-                                   "Precision" = 3, "F1 Score" = 4)) %>%
+    arrange(name) %>%
+    select(name, algorithm, clemson_overall, marea, oxwalk100, overall) %>%
+    kableExtra::kable(align = "llllll", booktabs = TRUE,  format = "latex", col.names =
+                        c("Metric", "Algorithm", "Clemson", "MAREA", "OxWalk", "Overall")) %>%
+    kableExtra::collapse_rows(columns = 1:2, valign = "top") %>%
     kableExtra::kable_styling(latex_options = "scale_down")
+
+
+    # ungroup() %>%
+    # select(algorithm, starts_with("recall"), starts_with("precision"), starts_with("f1")) %>%
+    # mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense orig.", "Verisense rev.")) %>%
+    # kableExtra::kable(align = "llll", booktabs = TRUE,  format = "latex", col.names =
+    #                     c("Algorithm", "Clemson", "MAREA", "Oxwalk", "Overall",
+    #                       "Clemson", "Oxwalk", "Overall",
+    #                       "Clemson", "MAREA", "Oxwalk", "Overall")) %>%
+    # kableExtra::add_header_above(c(" " = 1, "Recall" = 4,
+    #                                "Precision" = 3, "F1 Score" = 4)) %>%
+    # kableExtra::kable_styling(latex_options = "scale_down")
 
   # determine best
   accuracy_df %>% group_by(algorithm, cat_activity) %>% summarize(f1 = mean(f1)) %>%
@@ -204,15 +202,17 @@ plot = overall %>%
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
     scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense orig.", "Verisense rev.", "stepcount RF", "stepcount SSL"))
-  svg(here::here("manuscript/figures", "boxplot_overall.svg"))
-  plot
-  dev.off()
+
+
+  # svg(here::here("manuscript/figures", "boxplot_overall.svg"))
+  # plot
+  # dev.off()
 
   labs2 = c("Clemson", "MAREA", "OxWalk")
   names(labs2) = c("clemson_overall", "marea", "oxwalk100")
 
   # current figure
-  plot =
+  plot_all =
     recog_stats %>%
     mutate(value= ifelse(name == "prec" & id_study == "marea", NA, value)) %>%
     mutate(cat_activity = factor(cat_activity, levels = c("clemson_overall", "marea", "oxwalk100"))) %>%
@@ -237,8 +237,9 @@ plot = overall %>%
     labs(x = "", y = "")+
     guides(colour = guide_legend(nrow = 4))+
     scale_x_discrete(labels = c("ADEPT", "SDT", "Oak", "ActiLife", "Verisense orig.", "Verisense rev.", "stepcount RF", "stepcount SSL"))
-  svg(here::here("manuscript/figures", "boxplot_all.svg"))
-  plot
+
+  svg(here::here("manuscript/figures", "boxplots_both.svg"))
+  cowplot::plot_grid(plot, plot_all, rel_widths = c(.25, .75))
   dev.off()
 
   plot =
@@ -254,10 +255,11 @@ plot = overall %>%
     scale_color_manual(values = manual_cols, name = "",
                        labels = c("ActiLife", "ADEPT", "Oak","stepcount RF", "stepcount SSL", "SDT", "Verisense original", "Verisense revised"))+
     theme_bw()+
-    theme(legend.position = c(.5 ,.5),
+    theme(legend.position = "bottom",
+          legend.title = element_blank(),
           legend.justification = c("right", "top"),
           legend.box.just = "right",
-          legend.margin = margin(1, 1, 1, 1),
+          legend.margin = margin(2, 2, 2, 2),
           axis.text.x = element_text(angle = 30, hjust = 1, vjust =1),
           strip.text = element_text(size = 12),
           axis.text = element_text(size = 10),
@@ -811,4 +813,6 @@ plot = overall %>%
   cowplot::plot_grid(f1, prec, recall)
 
 }
+
+
 
