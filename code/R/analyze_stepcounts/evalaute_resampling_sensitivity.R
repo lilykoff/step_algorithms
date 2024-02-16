@@ -133,6 +133,7 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
     filter(!grepl("res", method)) %>%
     mutate(method = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT", "Verisense, Original",
                       "Verisense, Revised")) %>%
+    select(method, clemson, marea, oxwalk25, oxwalk100, overall) %>%
     arrange(method) %>%
     magrittr::set_colnames(c("Algorithm", "Clemson (15Hz)", "MAREA (128Hz)",
                              "OxWalk (25Hz)", "OxWalk (100Hz)", "Overall")) %>%
