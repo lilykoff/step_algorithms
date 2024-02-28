@@ -73,7 +73,7 @@ plt=marea %>%
   stat_poly_line(aes(col = algorithm), se = FALSE)+
   # stat_poly_eq(use_label(c("eq", "p")), col = "black", label.y = .2)+
   theme_bw()+
-  labs(x = "Speed (km/hr)", y = "Estimated Difference (Truth - Predicted) per Minute")+
+  labs(x = "Speed (km/hr)", y = "Estimated Difference in Steps (True - Predicted) per Minute")+
   scale_x_continuous(breaks=seq(4,8,0.8))+
   scale_shape_manual(name = "", values = c(17, 16), labels = c("Run", "Walk"))+
   geom_hline(aes(yintercept = 0))+

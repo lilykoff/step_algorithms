@@ -1,0 +1,1075 @@
+---
+title: "Application of Open-Source Step Counting Algorithms on Publicly-Available Data"
+subtitle: "Statistical methods in digital health research"
+execute: 
+  echo: false
+  cache: true
+  warning: false
+  message: false
+  eval: true
+format: 
+  revealjs:
+    reference-location: document
+    theme: dark
+    incremental: true
+    progress: true
+    logo: hopkins_logo.jpeg
+author: "Lily Koffman" 
+date: "March 2024"
+institute: "JHU Biostatistics"
+---
+
+
+```{r}
+#| include: false
+#| eval: true
+library(gt)
+library(tidyverse)
+`%notin%` = Negate(`%in%`)
+library(paletteer)
+library(ggpmisc)
+
+# custom color palette
+# paletteer::paletteer_d("colorBlindness::paletteMartin")
+coladept = "#DB6D00FF"
+colsdt = "#920000FF"
+coloak = "#FF6DB6FF"
+colacti = "#490092FF"
+colvso = "#006DDBFF"
+colvsr = "#6DB6FFFF"
+colscr = "#004949FF"
+colscs= "#009292FF"
+
+manual_cols = c("steps_adept_30" = coladept, "steps_sdt_30" = colsdt,
+                                "steps_oak_30" = coloak, "steps_acti_30" = colacti,
+                                "steps_vsores_30" = colvso, "steps_vsrres_30" = colvsr,
+                                "steps_scssl_30" = colscs,  "steps_scrf_30" = colscr)
+
+accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_bysubject.rds"))
+```
+
+
+## Background
+
++ Steps: easily translatable metric of physical activity
++ Goal: estimate steps with wearable accelerometery 
++ Transition from hip/waist accelerometers $\rightarrow$ wrist-worn devices
+  + Better adherence^[Richard P. Troiano, James J. McClain, Robert J. Brychta, and Kong Y. Chen. Evolution of accelerometer methods for physical activity research. *British Journal of Sports Medicine*, 48(13):1019–1023, July 2014]
+  + Harder to estimate steps 
+
+## The landscape 
+
++ Proprietary algorithms (Apple, FitBit, AcitGraph, Garmin) 
++ Open-source algorithms 
++ Lack of publicly-available data with ground truth step counts; especially free-living data
++ Mean absolute percent error reported $>20\%$ in free-living^[Ivar Holm, Jonatan Fridolfsson, Mats Börjesson, and Daniel Arvidsson. Fourteen days free-living evaluation of an opensource algorithm for counting steps in healthy adults with a large variation in physical activity level. *BMC Biomedical Engineering*, 5(1), April 2023.]
++ Step counts differ widely between devices on same individual^[Lindsay P. Toth, Susan Park, Cary M. Springer, Mckenzie D. Feyerabend, Jeremy A. Steeves, and David R. Bassett. Video-Recorded Validation of Wearable Step Counters under Free-living Conditions. *Medicine & Science in Sports & Exercise*, 50(6):1315, June 2018] 
+
+## Existing open-source algorithms {.smaller}
+
++ Adaptive empirical pattern transformation (ADEPT)^[Karas, Marta, Straczkiewicz, Marcin, Fadel, William, Harezlak, Jaroslaw, Crainiceanu, Ciprian, Urbanek, and Jacek. Adaptive empirical pattern transformation (ADEPT) with application to walking stride segmentation. $\textit{Biostatistics}$,2019.]
+  + Pattern matching with pre-specified stride templates
+
++ ActiLife^[ActiGraph's proprietary algorithm, *not open-source]
+
++ Oak^[Marcin Straczkiewicz, Emily J Huang, and Jukka-Pekka Onnela. A ``one-size-fits-most'' walking recognition method for smartphones, smartwatches, and wearable accelerometers. $\textit{NPJ Digital Medicine}$, 6(1):29, 2023] 
+  + Continuous wavelet transform 
+
++ $\texttt{stepcount}$^[Scott R. Small, Shing Chan, Rosemary Walmsley, Lennart von Fritsch, Aidan Acquah, Gert Mertes, Benjamin G. Feakins, Andrew Creagh, Adam Strange, Charles E. Matthews, David A. Clifton, Andrew J. Price, Sara Khalid, Derrick Bennett, and Aiden Doherty. Development and Validation of a Machine Learning Wrist-worn Step Detection Algorithm with Deployment in the UK Biobank, February 2023.]
+  + Hybrid machine-learning and peak finding 
+  + SSL and RF 
+
++ Step Detection Threshold (SDT)^[Scott W. Ducharme, Jongil Lim, Michael A. Busa, Elroy J. Aguiar, Christopher C. Moore, John M. Schuna, Tiago V. Barreira, John Staudenmayer, Stuart R. Chipkin, and Catrine Tudor-Locke. A Transparent Method for Step Detection using an Acceleration Threshold. $\textit{Journal for the Measurement of Physical Behaviour}$, 4(4):311–320, December 2021.]
+  + Peak finding
+
++ Verisense^[Benjamin D. Maylor, Charlotte L. Edwardson, Paddy C. Dempsey, Matthew R. Patterson, Tatiana Plekhanova, Tom Yates, and Alex V. Rowlands. Stepping towards More Intuitive Physical Activity Metrics with Wrist-Worn Accelerometry: Validity of an Open-Source Step-Count Algorithm. $\textit{Sensors}$, 22(24):9984, January 2022]
+  + Peak finding with constraints
+
+## Publicly available datasets with ground truth step counts
+
++ Clemson Pedometer Evaluation Project^[https://cecas.clemson.edu/~ahoover/pedometer/]
+  + 30 participants; 15 Hz
+
+
++ **M**ovement **A**nalysis in **R**eal-world **E**nvironments using **A**ccelerometers (MAREA) Gait Database^[https://wiki.hh.se/caisr/index.php/Gait_database]
+  + 20 participants; 128 Hz
+
++ OxWalk^[https://ora.ox.ac.uk/objects/uuid:19d3cb34-e2b3-4177-91b6-1bad0e0163e7] 
+  + 39 participants; 25 and 100 Hz
+
+## Data
+
+::: {.panel-tabset}
+
+### Clemson
+
+```{r}
+library(tidyverse)
+clem = readRDS(here::here("data", "processed", "clemson_nested_all.rds")) %>%
+  filter(id_subject == "P15")
+
+
+step_temp =
+  clem %>%
+  filter(time %in% time[90]:time[100] &
+           cat_activity == "walk_semiregular") %>%
+  unnest(raw_data) %>%
+  mutate(vm = sqrt(X ^ 2 + Y ^ 2 + Z ^ 2),
+         ind_step = ifelse(ind_step == 1, .5, NA)) %>%
+  mutate(type = "Semiregular Walking")
+
+
+step_temp2 =
+  clem %>%
+  filter(time %in% time[21]:time[31] &
+           cat_activity == "walk_irregular") %>%
+  unnest(raw_data) %>%
+  mutate(vm = sqrt(X ^ 2 + Y ^ 2 + Z ^ 2),
+         ind_step = ifelse(ind_step == 1, .5, NA)) %>%
+  mutate(type = "Irregular Walking")
+
+
+step_temp3 =
+  clem %>%
+  filter(time %in% time[21]:time[31] &
+           cat_activity == "walk_regular") %>%
+  unnest(raw_data) %>%
+  mutate(vm = sqrt(X ^ 2 + Y ^ 2 + Z ^ 2),
+         ind_step = ifelse(ind_step == 1, .5, NA)) %>%
+  mutate(type = "Regular Walking")
+
+st =
+  step_temp %>%
+  bind_rows(step_temp2) %>%
+  bind_rows(step_temp3) %>%
+  filter(!is.na(ind_step)) %>%
+  mutate(type = factor(
+    type,
+    levels = c("Regular Walking", "Semiregular Walking", "Irregular Walking")
+  ))
+
+bind_rows(step_temp, step_temp2, step_temp3) %>%
+  mutate(type = factor(
+    type,
+    levels = c("Regular Walking", "Semiregular Walking", "Irregular Walking")
+  )) %>%
+  ggplot(aes(x = tm_dttm, y = vm)) +
+  # geom_point(aes(x = tm_dttm, y = ind_step))+
+  geom_line(col = "#333333") +
+  theme_classic() +
+  facet_wrap(. ~ type, scales = "free_x") +
+  geom_vline(data = st,
+             aes(xintercept = tm_dttm),
+             col = "#999999") +
+  labs(x = "Time (s)", y = "Vector Magnitude (g)", title = "") +
+  scale_x_datetime(date_breaks = "1 sec", date_labels = "%S") +
+  scale_y_continuous(breaks = seq(.5, 2, .5),
+                     limits = c(.4, 2.2))
+```
+
+### MAREA 
+
+```{r}
+marea = readRDS(here::here("data", "processed", "marea_nested_all.rds")) %>% 
+  filter(id_subject == "P03")
+
+
+step_temp =
+  marea %>%
+  filter(cat_activity == "indoor_walk") %>%
+  filter(time %in% time[20]:time[30]) %>%
+  unnest(raw_data) %>%
+  mutate(vm = sqrt(X^2 + Y^2 + Z^2),
+         ind_step = ifelse(ind_step == 1, .5, NA)) %>%
+  mutate(type = "Indoor Walking")
+
+step_temp2 =
+  marea %>%
+  filter(cat_activity == "treadmill_walk") %>%
+  filter(time %in% time[240]:time[250]) %>%
+  unnest(raw_data) %>%
+  mutate(vm = sqrt(X^2 + Y^2 + Z^2),
+         ind_step = ifelse(ind_step == 1, .5, NA)) %>%
+  mutate(type = "Treadmill Walking")
+
+st =
+  step_temp %>%
+  bind_rows(step_temp2) %>%
+  filter(!is.na(ind_step)) 
+
+bind_rows(step_temp, step_temp2)  %>%
+  ggplot(aes(x = tm_dttm, y = vm)) +
+  # geom_point(aes(x = tm_dttm, y = ind_step))+
+  geom_line(col = "#333333") +
+  theme_classic() +
+  facet_wrap(. ~ type, scales = "free_x") +
+  geom_vline(data = st,
+             aes(xintercept = tm_dttm),
+             col = "#999999") +
+  labs(x = "Time (s)", y = "Vector Magnitude (g)", title = "") +
+  scale_x_datetime(date_breaks = "1 sec", date_labels = "%S") +
+  scale_y_continuous(breaks = seq(.5, 2, .5),
+                     limits = c(.4, 2.2))
+
+
+```
+
+### OxWalk
+
+```{r}
+ox = readRDS(here::here("data", "processed", "oxwalk_nested_all.rds")) %>% 
+  filter(id_subject == "P11" & sample_rate==100)
+
+step_temp =
+  ox %>%
+  filter(time >= as.POSIXct("2019-07-22 10:46:59.000", tz = "UTC") &
+           time <= as.POSIXct("2019-07-22 10:46:59.000", tz = "UTC") + as.period(10, "seconds")) %>%
+  unnest(raw_data) %>%
+  mutate(vm = sqrt(X^2 + Y^2 + Z^2),
+         ind_step = ifelse(ind_step == 1, .5, NA)) %>%
+  mutate(type = "Free Living - 10s")
+
+
+step_temp2 =
+  ox %>%
+  filter(time >= as.POSIXct("2019-07-22 10:56:59.000", tz = "UTC") &
+           time <= as.POSIXct("2019-07-22 10:56:59.000", tz = "UTC") + as.period(10, "seconds")) %>%
+  unnest(raw_data) %>%
+  mutate(vm = sqrt(X^2 + Y^2 + Z^2),
+         ind_step = ifelse(ind_step == 1, .5, NA)) %>%
+  mutate(type = "Free Living - Another 10s")
+
+
+st =
+  bind_rows(step_temp, step_temp2) %>%
+  filter(!is.na(ind_step))
+
+bind_rows(step_temp, step_temp2) %>%
+  ggplot(aes(x = tm_dttm, y = vm))+
+  # geom_point(aes(x = tm_dttm, y = ind_step))+
+  geom_line(col = "#333333")+
+  theme_classic()+
+  facet_wrap(.~type, scales = "free_x") +
+  geom_vline(data = st, aes(xintercept = tm_dttm), col = "#999999")+
+  labs(x = "Time (s)", y = "Vector Magnitude (g)", title = "")+
+  scale_x_datetime(date_breaks = "1 sec", date_labels = "%S")+
+  scale_y_continuous(breaks=seq(.5,2,.5),
+                     limits=c(.4,2.2))
+```
+
+::: 
+
+## Methods {.smaller}
+
++ Resample all data to 30 Hz (for fair comparison) 
++ Fit all algorithms on raw data 
++ Evaluate: 
+  + Walking recognition (F1 score, precision, recall)
+  + Step count (absolute percent error, bias) 
+  + Sensitivity to sampling rate 
++ All code for this analysis at <https://github.com/lilykoff/step_algorithms>
++ \texttt{walking}<https://github.com/muschellij2/walking> and \texttt{stepcount}<https://github.com/jhuwit/stepcount> R packages implement all algorithms
+
+## Results: walking recognition 
+
+```{r}
+
+tab_individual =
+  accuracy_df %>%
+  filter(cat_activity %in% c("oxwalk100", "marea", "clemson_overall") &
+           grepl("30", algorithm)) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
+  group_by(algorithm, cat_activity) %>%
+  summarize(across(c(recall, prec, f1),
+                   list(
+                     mean = ~ mean(.x),
+                     sd = ~ sd(.x)
+                   ))) %>%
+  # formatting
+  mutate(
+    recall = paste0(
+      sprintf(recall_mean, fmt = "%#.2f"),
+      " (",
+      sprintf(recall_sd, fmt = "%#.2f"),
+      ")"
+    ),
+    precision = paste0(
+      sprintf(prec_mean, fmt = "%#.2f"),
+      " (",
+      sprintf(prec_sd, fmt = "%#.2f"),
+      ")"
+    ),
+    f1 = paste0(
+      sprintf(f1_mean, fmt = "%#.2f"),
+      " (",
+      sprintf(f1_sd, fmt = "%#.2f"),
+      ")"
+    )
+  ) %>%
+  select(algorithm, cat_activity, recall, precision, f1) %>%
+  pivot_longer(recall:f1) %>%
+  pivot_wider(names_from = cat_activity, values_from = value) %>%
+  mutate(marea = ifelse(name == "precision", NA, marea))
+
+tab_overall =
+  accuracy_df %>%
+  filter(cat_activity %in% c("oxwalk100", "marea", "clemson_overall") &
+           grepl("30", algorithm)) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
+  group_by(algorithm) %>%
+  summarize(across(c(recall, prec, f1),
+                   list(
+                     mean = ~ mean(.x, na.rm = TRUE),
+                     sd = ~ sd(.x, na.rm = TRUE)
+                   ))) %>%
+  # formatting
+  mutate(
+    recall = paste0(
+      sprintf(recall_mean, fmt = "%#.2f"),
+      " (",
+      sprintf(recall_sd, fmt = "%#.2f"),
+      ")"
+    ),
+    precision = paste0(
+      sprintf(prec_mean, fmt = "%#.2f"),
+      " (",
+      sprintf(prec_sd, fmt = "%#.2f"),
+      ")"
+    ),
+    f1 = paste0(
+      sprintf(f1_mean, fmt = "%#.2f"),
+      " (",
+      sprintf(f1_sd, fmt = "%#.2f"),
+      ")"
+    )
+  ) %>%
+  select(algorithm, recall, precision, f1) %>%
+  # rename_with(~str_c(., "_overall"), .cols = -algorithm) %>%
+  pivot_longer(recall:f1) %>%
+  rename(overall = value)
+
+
+
+tab_individual %>%
+  left_join(tab_overall) %>%
+  arrange(name) %>%
+  select(name, algorithm, clemson_overall, marea, oxwalk100, overall) %>%
+  filter(name == "f1") %>%
+  ungroup() %>%
+  select(-name) %>%
+  mutate(
+    algorithm = c(
+      "ActiLife",
+      "ADEPT",
+      "Oak",
+      "stepcount RF",
+      "stepcount SSL",
+      "SDT",
+      "Verisense original",
+      "Verisense revised"
+    )
+  ) %>%
+  magrittr::set_colnames(c("Algorithm", "Clemson", "MAREA", "OxWalk", "Overall")) %>%
+  gt::gt() %>%
+  gt::tab_style(
+    style = list(cell_fill(color = "#FFFF6DFF"),
+                 cell_text(weight = "bold")),
+    locations = cells_body(columns = Clemson,
+                           rows = Clemson == "0.91 (0.02)")
+  ) %>%
+  gt::tab_style(
+    style = list(cell_fill(color = "#FFFF6DFF"),
+                 cell_text(weight = "bold")),
+    locations = cells_body(columns = MAREA,
+                           rows = MAREA == "0.99 (0.01)")
+  ) %>%
+  gt::tab_style(
+    style = list(cell_fill(color = "#FFFF6DFF"),
+                 cell_text(weight = "bold")),
+    locations = cells_body(columns = OxWalk,
+                           rows = OxWalk == "0.83 (0.14)")
+  ) %>%
+  gt::tab_style(
+    style = list(cell_fill(color = "#FFFF6DFF"),
+                 cell_text(weight = "bold")),
+    locations = cells_body(columns = Overall,
+                           rows = Overall == "0.89 (0.11)")
+  ) %>%
+  gt::tab_style(
+    style = cell_text(font = system_fonts(name = "monospace-slab-serif")),
+    locations = cells_body(columns = Algorithm,
+                           rows = Algorithm %in% c("stepcount RF", "stepcount SSL"))
+  ) %>% 
+  gt::tab_header("Mean (SD) F1 Score") %>% 
+  gt::tab_options(table.width = pct(100)) %>% 
+  # tab_spanner(label = "Dataset", columns = vars("Clemson", "MAREA", "OxWalk", "Overall")) %>%
+   cols_align("left", columns = everything()) %>% 
+  gt::as_raw_html() 
+```
+$$ \rm{F1} = 2 \cdot \frac{\rm{precision}\cdot\rm{recall}}{\rm{precision}+\rm{recall}} = \frac{\rm{TP}}{\rm{TP} + \frac{1}{2}(\rm{FP}+\rm{FN})}$$
+
+## Results: walking recognition
+
+
+```{r}
+
+
+# main manuscript boxplots of metrics
+recog_median =
+  accuracy_df %>%
+  filter(cat_activity %in% c("oxwalk100", "marea", "clemson_overall") &
+           grepl("30", algorithm)) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
+  group_by(algorithm, cat_activity) %>%
+  summarize(across(c(recall, prec, f1),
+                   list(median = ~ median(.x)))) %>%
+  pivot_longer(cols = ends_with("median")) %>%
+  mutate(algorithm = sub(".*steps\\_(.+)\\_30.*", "\\1", algorithm)) %>%
+  ungroup()
+
+level_order =
+  accuracy_df %>%
+  filter(cat_activity %in% c("oxwalk100", "marea", "clemson_overall") &
+           grepl("30", algorithm)) %>%
+  group_by(algorithm) %>%
+  summarize(median = median(f1)) %>%
+  ungroup() %>%
+  arrange(median) %>%
+  pull(algorithm)
+
+
+# each row is subject, activity
+recog_stats =
+  accuracy_df %>%
+  filter(cat_activity %in% c("oxwalk100", "marea", "clemson_overall") &
+           grepl("30", algorithm)) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
+  pivot_longer(cols = recall:f1)
+
+
+# overall panel
+overall =
+  accuracy_df %>%
+  filter(cat_activity %in% c("oxwalk100", "marea", "clemson_overall") &
+           grepl("30", algorithm)) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
+  pivot_longer(cols = recall:f1) %>%
+  mutate(cat_activity = "overall")
+labs = c("F1 Score", "Precision", "Recall")
+names(labs) = c("f1", "prec", "recall")
+
+plot = overall %>%
+  mutate(
+    value = ifelse(name == "prec" & id_study == "marea", NA, value),
+    cat_activity = "Overall"
+  ) %>%
+  ggplot(aes(
+    x = factor(algorithm, levels = level_order),
+    y = value,
+    col = algorithm
+  )) +
+  geom_boxplot(outlier.shape = NA, position = position_dodge()) +
+  geom_jitter(width = .1, alpha = .5) +
+  facet_grid(name ~ cat_activity,
+             labeller = labeller(name = labs)) +
+  scale_color_manual(
+    values = manual_cols,
+    name = "",
+    labels = c(
+      "ActiLife",
+      "ADEPT",
+      "Oak",
+      "stepcount RF",
+      "stepcount SSL",
+      "SDT",
+      "Verisense orig.",
+      "Verisense (revised"
+    )
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      vjust = 1
+    ),
+    strip.text = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10)
+  ) +
+  labs(x = "", y = "") +
+  guides(colour = guide_legend(nrow = 4)) +
+  scale_x_discrete(
+    labels = c(
+      "ADEPT",
+      "SDT",
+      "Oak",
+      "ActiLife",
+      "Verisense orig.",
+      "Verisense rev.",
+      "stepcount RF",
+      "stepcount SSL"
+    )
+  )
+
+
+labs2 = c("Clemson", "MAREA", "OxWalk")
+names(labs2) = c("clemson_overall", "marea", "oxwalk100")
+
+# current figure
+plot_all =
+  recog_stats %>%
+  mutate(value = ifelse(name == "prec" &
+                          id_study == "marea", NA, value)) %>%
+  mutate(cat_activity = factor(
+    cat_activity,
+    levels = c("clemson_overall", "marea", "oxwalk100")
+  )) %>%
+  ggplot(aes(
+    x = factor(algorithm, levels = level_order),
+    y = value,
+    col = algorithm
+  )) +
+  geom_boxplot(outlier.shape = NA, position = position_dodge()) +
+  geom_jitter(width = .1, alpha = .5) +
+  facet_grid(name ~ cat_activity,
+             labeller = labeller(name = labs,
+                                 cat_activity = labs2)) +
+  scale_color_manual(
+    values = manual_cols,
+    name = "",
+    labels = c(
+      "ActiLife",
+      "ADEPT",
+      "Oak",
+      "stepcount RF",
+      "stepcount SSL",
+      "SDT",
+      "Verisense orig.",
+      "Verisense rev."
+    )
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    # legend.position = c(.49, .6),
+    legend.justification = c("right", "top"),
+    legend.box.just = "right",
+    legend.margin = margin(1, 1, 1, 1),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      vjust = 1
+    ),
+    strip.text = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 12)
+  ) +
+  labs(x = "", y = "") +
+  guides(colour = guide_legend(nrow = 4)) +
+  scale_x_discrete(
+    labels = c(
+      "ADEPT",
+      "SDT",
+      "Oak",
+      "ActiLife",
+      "Verisense orig.",
+      "Verisense rev.",
+      "stepcount RF",
+      "stepcount SSL"
+    )
+  )
+
+cowplot::plot_grid(plot, plot_all, rel_widths = c(.33, .66))
+
+plot =
+  recog_stats %>%
+  mutate(value = ifelse(name == "prec" &
+                          id_study == "marea", NA, value)) %>%
+  mutate(cat_activity = factor(
+    cat_activity,
+    levels = c("clemson_overall", "marea", "oxwalk100")
+  )) %>%
+  ggplot(aes(
+    x = factor(algorithm, levels = level_order),
+    y = value,
+    col = algorithm
+  )) +
+  geom_boxplot(outlier.shape = NA, position = position_dodge()) +
+  geom_jitter(width = .1, alpha = .5) +
+  facet_grid(name ~ cat_activity,
+             labeller = labeller(name = labs,
+                                 cat_activity = labs2)) +
+  scale_color_manual(
+    values = manual_cols,
+    name = "",
+    labels = c(
+      "ActiLife",
+      "ADEPT",
+      "Oak",
+      "stepcount RF",
+      "stepcount SSL",
+      "SDT",
+      "Verisense original",
+      "Verisense revised"
+    )
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    legend.justification = c("right", "top"),
+    legend.box.just = "right",
+    legend.margin = margin(2, 2, 2, 2),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      vjust = 1
+    ),
+    strip.text = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 12)
+  ) +
+  labs(x = "", y = "") +
+  guides(colour = guide_legend(nrow = 4)) +
+  scale_x_discrete(
+    labels = c(
+      "ADEPT",
+      "SDT",
+      "Oak",
+      "ActiLife",
+      "Verisense original",
+      "Verisense revised",
+      "stepcount RF",
+      "stepcount SSL"
+    )
+  )
+```
+
+## Results: step counts {.smaller .scrollable}
+
+```{r} 
+step_df =
+  readRDS(here::here("results", "all_algorithms", "step_stats_bysubject.rds")) %>%
+  filter(cat_activity != "oxwalk25" &
+           grepl("30", algorithm)) %>%
+  filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30"))
+
+# manuscript table
+tab_individual =
+  step_df %>%
+  filter(cat_activity %in% c("clemson_overall", "oxwalk100", "marea")) %>%
+  pivot_longer(cols = c("bias", "ape"), names_to = "metric") %>%
+  group_by(metric, algorithm, cat_activity) %>%
+  summarize(across(value,
+                   list(
+                     mean = ~ mean(.x),
+                     sd = ~ sd(.x)
+                   ))) %>%
+  rowwise() %>%
+  mutate(mean = case_when(
+    metric == "bias" ~  paste0(
+      sprintf(value_mean, fmt = "%.0f"),
+      " (",
+      sprintf(value_sd, fmt = "%.0f"),
+      ")"
+    ),
+    metric == "ape" ~ paste0(
+      sprintf(value_mean, fmt = "%#.1f"),
+      " (",
+      sprintf(value_sd, fmt = "%.0f"),
+      ")"
+    )
+  )) %>%
+  select(algorithm, cat_activity, mean, metric) %>%
+  pivot_wider(names_from = c(cat_activity), values_from = mean)
+# mutate(algorithm = c("ActiLife", "ADEPT", "Oak", "Stepcount (RF)", "Stepcount (SSL)", "SDT",
+#                      "Verisense (original)", "Verisense (revised)"))
+
+tab_overall =
+  step_df %>%
+  filter(cat_activity %in% c("clemson_overall", "oxwalk100", "marea")) %>%
+  pivot_longer(cols = c("bias", "ape"), names_to = "metric") %>%
+  group_by(metric, algorithm) %>%
+  summarize(across(value,
+                   list(
+                     mean = ~ mean(.x, na.rm = TRUE),
+                     sd = ~ sd(.x, na.rm = TRUE)
+                   ))) %>%
+  rowwise() %>%
+  mutate(mean = case_when(
+    metric == "bias" ~  paste0(
+      sprintf(value_mean, fmt = "%.0f"),
+      " (",
+      sprintf(value_sd, fmt = "%.0f"),
+      ")"
+    ),
+    metric == "ape" ~ paste0(
+      sprintf(value_mean, fmt = "%#.1f"),
+      " (",
+      sprintf(value_sd, fmt = "%.0f"),
+      ")"
+    )
+  )) %>%
+  select(algorithm, mean, metric) %>%
+  rename(overall = mean)
+
+tab_individual %>%
+    left_join(tab_overall, by = c("metric", "algorithm")) %>%
+    select(metric, algorithm, clemson_overall, marea, oxwalk100, overall) %>%
+    mutate(algorithm = rep(c(
+      "ActiLife",
+      "ADEPT",
+      "Oak",
+      "stepcount RF",
+      "stepcount SSL",
+      "SDT",
+      "Verisense original",
+      "Verisense revised"),2)) %>% 
+  magrittr::set_colnames(c("Metric", "Algorithm", "Clemson", "MAREA", "OxWalk", "Overall")) %>% 
+  gt::gt() %>% 
+  tab_row_group(label = md("**Absolute percent error mean (SD)**"),
+                rows = Metric == "ape",
+                id = "mape") %>% 
+  tab_row_group(label = md("**Bias (predicted steps - true steps) mean (SD)**"), 
+                rows = Metric == "bias",
+                id = "bias") %>% 
+  cols_hide(Metric) %>% 
+  row_group_order(groups = c("mape", "bias")) %>% 
+  gt::tab_style(
+    style = list(cell_fill(color = "#FFFF6DFF"),
+                 cell_text(weight = "bold")),
+    locations = cells_body(columns = Clemson,
+                           rows = Clemson %in% c("5.5 (6)", "7 (151)"))
+  ) %>%
+  gt::tab_style(
+    style = list(cell_fill(color = "#FFFF6DFF"),
+                 cell_text(weight = "bold")),
+    locations = cells_body(columns = MAREA,
+                           rows = MAREA %in% c("-210 (262)", "11.4 (10)"))
+  ) %>%
+  gt::tab_style(
+    style = list(cell_fill(color = "#FFFF6DFF"),
+                 cell_text(weight = "bold")),
+    locations = cells_body(columns = OxWalk,
+                           rows = OxWalk %in% c("9.6 (10)", "-42 (336)"))
+  ) %>%
+  gt::tab_style(
+    style = list(cell_fill(color = "#FFFF6DFF"),
+                 cell_text(weight = "bold")),
+    locations = cells_body(columns = Overall,
+                           rows = Overall %in% c("8.6 (9)", "-10 (269)"))
+  ) %>%
+  gt::tab_style(
+    style = cell_text(font = system_fonts(name = "monospace-slab-serif")),
+    locations = cells_body(columns = Algorithm,
+                           rows = Algorithm %in% c("stepcount RF", "stepcount SSL"))
+  ) %>% 
+  # gt::tab_header("Mean bias and absolute percent error") %>% 
+  gt::tab_options(table.width = pct(100)) %>% 
+  tab_style(
+    style = list(
+      cell_fill(color = "grey")),
+      locations = cells_row_groups(groups = everything())) %>% 
+  cols_align("left", columns = everything()) %>% 
+  # tab_spanner(label = "Dataset", columns = vars("Clemson", "MAREA", "OxWalk", "Overall")) %>% 
+  gt::as_raw_html() 
+```
+
+## Results: step counts 
+::: {.panel-tabset}
+
+### Clemson
+
+```{r}
+manual_cols = c("adept" = coladept, "sdt" = colsdt,
+                                "oak" = coloak, "acti" = colacti,
+                                "vsores" = colvso, "vsrres" = colvsr,
+                                "scssl" = colscs,  "scrf" = colscr)
+
+total_steps = readRDS(here::here("results", "all_algorithms", "total_steps_bysubject.rds")) %>%
+    filter(algorithm %notin% c("steps_vsoraw_30", "steps_vsrraw_30")) %>%
+    filter(cat_activity != "oxwalk25" &
+           (grepl("30", algorithm) | grepl("truth", algorithm)))
+  labs = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense original",
+           "Verisense revised")
+
+  names(labs) = c("acti", "adept", "oak",  "scrf", "scssl","sdt", "vsores", "vsrres")
+
+    total_steps %>%
+    filter(cat_activity != "clemson_overall" & id_study == "clemson") %>%
+    pivot_wider(names_from = algorithm, values_from = total_steps) %>%
+    pivot_longer(cols = c(steps_adept_30:steps_acti_30)) %>%
+    select(id_subject, cat_activity, steps_truth, name, value) %>%
+    mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name),
+           cat_activity = factor(cat_activity,
+                                 levels = c("clemson_walk_regular",
+                                            "clemson_walk_semiregular",
+                                            "clemson_walk_irregular"))) %>%
+    ggplot(aes(x = steps_truth, y = value, col = method, shape = cat_activity))+
+    geom_point(size = 2) +
+    facet_wrap(.~method,labeller = labeller(method = labs),
+               nrow = 2)+
+    scale_color_manual(values  = manual_cols, name = "", guide = "none")+
+    scale_shape_discrete(name = "", labels = c("Walk regular", "Walk semiregular", "Walk irregular"))+
+    theme_bw()+
+    geom_abline()+
+    scale_x_continuous(limits = c(0, 1250))+
+    scale_y_continuous(limits=c(0,1250))+
+    theme(legend.position = "bottom",
+          legend.margin = margin(1,1,1,1),
+          legend.title = element_blank(),
+          legend.justification = c("right", "top"),
+          legend.box.just = "right",
+          axis.text = element_text(size = 10),
+          axis.title = element_text(size = 12),
+          strip.text = element_text(size = 11),
+          legend.text = element_text(size = 12))+
+    labs(x = "True Steps", y = "Predicted Steps")+
+    coord_equal()+
+    guides(shape = guide_legend(nrow = 1))
+```
+
+### MAREA
+
+```{r}
+
+total_steps %>%
+    filter(id_study == "marea") %>%
+    pivot_wider(names_from = algorithm, values_from = total_steps) %>%
+    pivot_longer(cols = c(steps_adept_30:steps_acti_30)) %>%
+    select(id_subject, cat_activity, steps_truth, name, value) %>%
+    mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name),
+           activity = case_when(
+             cat_activity %in% c("indoor_walk", "outdoor_walk") ~ "Walk indoor/outdoor",
+             TRUE ~ "Walk treadmill"
+           )) %>%
+    ggplot(aes(x = steps_truth, y = value, col = method, shape = activity))+
+    geom_point(size = 2) +
+    facet_wrap(.~method,labeller = labeller(method = labs), nrow = 2)+
+    scale_color_manual(values  = manual_cols, name = "", guide = "none")+
+    scale_shape_discrete(name = "")+
+    theme_bw()+
+    geom_abline()+
+    scale_x_continuous(limits = c(0, 1600))+
+    scale_y_continuous(limits=c(0,1600))+
+    theme(legend.position = "bottom",
+          legend.margin = margin(1,1,1,1),
+          legend.title = element_blank(),
+          legend.justification = c("right", "top"),
+          legend.box.just = "right",
+          axis.text = element_text(size = 10),
+          axis.title = element_text(size = 12),
+          strip.text = element_text(size = 11),
+          legend.text = element_text(size = 12))+
+    labs(x = "True Steps", y = "Predicted Steps")+
+    coord_equal()+
+    guides(shape = guide_legend(nrow = 1))
+```
+
+
+### OxWalk
+
+```{r}
+ total_steps %>%
+    filter(id_study == "oxwalk") %>%
+    pivot_wider(names_from = algorithm, values_from = total_steps) %>%
+    pivot_longer(cols = c(steps_adept_30:steps_acti_30)) %>%
+    select(id_subject, cat_activity, steps_truth, name, value) %>%
+    mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name)) %>%
+    ggplot(aes(x = steps_truth, y = value, col = method))+
+    geom_point(size = 2) +
+    facet_wrap(method~.,nrow = 2,labeller = labeller(method = labs))+
+    scale_color_manual(values  = manual_cols, name = "", guide = "none")+
+    theme_bw()+
+    geom_abline()+
+    scale_x_continuous(limits = c(0, 6500))+
+    scale_y_continuous(limits=c(0,6500))+
+    theme(legend.position= "none",
+          axis.text = element_text(size = 10),
+          axis.title = element_text(size = 12),
+          strip.text = element_text(size = 11),
+          legend.text = element_text(size = 12))+
+    labs(x = "True Steps", y = "Predicted Steps")+
+    coord_equal()
+
+```
+
+:::
+
+## Sensitivity to sample rate
+::: {.panel-tabset}
+
+### stepcount
+
+```{r}
+clemson = readr::read_csv(here::here("results/all_algorithms/clemson_step_estimates_1sec.csv.gz"))
+
+
+  # bland altman type plots for stepcount and verisense to show impact of resampling
+
+  summary_df =
+    clemson %>%
+    group_by(id_subject) %>%
+    select(id_subject, contains("truth"), contains("sc")) %>%
+    summarize(across(starts_with("steps"),
+                     ~ sum(.x))) %>%
+    rowwise() %>%
+    mutate(across(starts_with("steps") & !contains("truth"),
+                  list(difference = ~steps_truth - .x,
+                       truth = ~steps_truth))) %>%
+    select(id_subject, steps_truth, ends_with("difference")) %>%
+    pivot_longer(cols = ends_with("difference")) %>%
+    rowwise() %>%
+    mutate(type = ifelse(strsplit(name, "_")[[1]][3]=="30", "resampled", "raw"),
+           algorithm = strsplit(name, "_")[[1]][2]) %>%
+    select(-name)
+  labs = c("stepcount RF", "stepcount SSL")
+  names(labs) = c("scrf", "scssl")
+
+  # means = summary_df  %>%
+  #   group_by(algorithm) %>%
+  #   summarize(mean = mean(value),
+  #             sd  = sd(value),
+  #             ub = mean + 1.96 * sd,
+  #             lb = mean - 1.96 * sd)
+
+  plt = ggplot(summary_df) +
+    geom_point(aes(x = steps_truth, y = value, col = type), size = 2.5)+
+    facet_wrap(.~algorithm, labeller = labeller(algorithm = labs)) +
+    theme_bw()+
+    geom_hline(aes(yintercept = 0), col = "darkgrey", linetype  = 2)+
+    labs(x = "True Steps ",
+         y = "Difference (True Steps - Predicted Steps)",
+         title = "")+
+    # scale_color_manual(values = c("#5773CC", "#FFB900"), labels = c("15Hz", "30Hz"), name = "Sample Rate")+
+    scale_color_manual(values = c("#008600", "#860086"), labels = c("15Hz", "30Hz"), name = "Sample Rate")+
+    theme(legend.position = c(.1, .9),
+          legend.text = element_text(size = 12),
+          legend.margin = margin(1,1,1,1),
+          axis.text= element_text(size = 10),
+          axis.title = element_text(size = 12),
+          strip.text = element_text(size = 12),
+          plot.title = element_text(size = 13))+
+    scale_y_continuous(limits=c(-350,2100))
+plt
+```
+
+### Verisense 
+
+
+```{r}
+summary_df =
+    clemson %>%
+    select(id_subject, id_study, contains("truth"), contains("vs")) %>%
+    group_by(id_subject) %>%
+    summarize(across(starts_with("steps"),
+                     ~ sum(.x))) %>%
+    select(-c(ends_with("res_30"), ends_with("res"))) %>%
+    magrittr::set_colnames(c("id_subject", "steps_truth", "steps_orig_15hz", "steps_rev_15hz",
+                             "steps_orig_30hz","steps_rev_30hz")) %>%
+    rowwise() %>%
+    mutate(across(starts_with("steps") & !contains("truth"),
+                  list(difference = ~steps_truth - .x,
+                       truth = ~steps_truth))) %>%
+    select(id_subject, steps_truth, ends_with("difference")) %>%
+    pivot_longer(cols = ends_with("difference")) %>%
+    rowwise() %>%
+    mutate(srate = strsplit(name, "_")[[1]][3],
+           algorithm = strsplit(name, "_")[[1]][2]) %>%
+    select(-name)
+  meth = c("Verisense* original", "Verisense* revised")
+  names(meth) = c("orig", "rev")
+  plot = summary_df %>%
+    mutate(srate = factor(srate, levels = c("15hz", "30hz"))) %>%
+    ggplot() +
+    geom_point(aes(x = steps_truth, y = value, col = srate), size = 2)+
+    facet_wrap(.~algorithm, labeller = labeller(algorithm = meth)) +
+    theme_bw()+
+    geom_hline(aes(yintercept = 0), col = "darkgrey", linetype  = 2)+
+    labs(x = "True Steps ",
+         y = "Difference (True Steps - Predicted Steps)",
+         title = "")+
+    # scale_color_manual(values = c("#5773CC", "#FFB900"),
+    #                    name = "Sample Rate", labels = c("15", "30")) +
+    scale_color_manual(values = c("#008600", "#860086"), labels = c("15Hz", "30Hz"), name = "Sample Rate")+
+    theme(legend.position = c(.1, .9),
+          legend.text = element_text(size = 12),
+          legend.margin = margin(1,1,1,1),
+          axis.text= element_text(size = 10),
+          axis.title = element_text(size = 12),
+          strip.text = element_text(size = 12),
+          plot.title = element_text(size = 13))+
+    scale_y_continuous(limits=c(-350,2100))
+  plot
+```
+:::
+
+## Sensitivity to speed 
+
+```{r}
+manual_cols = c("steps_adept" = coladept, "steps_sdt" = colsdt,
+                              "steps_oak" = coloak, "steps_acti" = colacti,
+                              "steps_vsores" = colvso, "steps_vsrres" = colvsr,
+                              "steps_scssl" = colscs,  "steps_scrf" = colscr)
+# marea_nested  = readRDS("~/Documents/step_algorithms/data/processed/marea_nested_all.rds")
+marea = read_csv(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.gz")) %>%
+  select(-contains("raw"))
+
+
+# speed vs bias figure
+# bias is estimated per minute
+labs = c("ActiLife", "ADEPT", "Oak", "stepcount RF", "stepcount SSL", "SDT", "Verisense original", "Verisense revised")
+
+names(labs) = c("steps_acti", "steps_adept", "steps_oak",  "steps_scrf", "steps_scssl","steps_sdt", "steps_vsores", "steps_vsrres")
+
+# with shapes for each activity
+marea %>%
+  filter(cat_activity_large == "treadmill_walkrun") %>%
+  group_by(id_subject, cat_activity_large, cat_activity, speed) %>%
+  mutate(n_sec = n()) %>%
+  select(contains("30") | contains("truth"), id_subject,
+         speed, n_sec, cat_activity) %>%
+  group_by(id_subject, speed, n_sec, cat_activity) %>%
+  summarize(across(starts_with("steps"), ~sum(.x))) %>%
+  ungroup() %>%
+  mutate(across(starts_with("steps")& !contains("truth"),
+                list(bias = ~(steps_truth - .x) * (n_sec/60)))) %>% # adjust to get bias per minute so eceryone on same scale
+  pivot_longer(cols = ends_with("bias")) %>%
+  mutate(algorithm = sub("\\_30.*", "", name),
+         speed = as.numeric(sub("km/hr.*", "", speed))) %>%
+  ggplot(aes(x = speed, y = value, col = algorithm))+
+  geom_jitter(width = .15, alpha = .8, aes(shape = cat_activity))+
+  facet_wrap(. ~ algorithm, labeller = labeller(algorithm = labs), nrow = 2)+
+  stat_poly_line(aes(col = algorithm), se = FALSE)+
+  # stat_poly_eq(use_label(c("eq", "p")), col = "black", label.y = .2)+
+  theme_bw()+
+  labs(x = "Speed (km/hr)", y = "Estimated Difference in Steps (True - Predicted) per Minute")+
+  scale_x_continuous(breaks=seq(4,8,0.8))+
+  scale_shape_manual(name = "", values = c(17, 16), labels = c("Run", "Walk"))+
+  geom_hline(aes(yintercept = 0))+
+ scale_color_manual(values = manual_cols, guide = "none")+
+  theme(legend.position = c(.09, .9),
+        legend.title = element_blank(),
+        legend.margin = margin(1,1,1,1),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10))
+```
+## Takeaways 
+
++ Strength of machine-learning based algorithms 
++ Need more free-living data with ground truth step counts from more diverse set of individuals  
++ Rethinking "gold standard": simultaneous wrist and hip/thigh accelerometry? 
+
+## Acknowledgments {.smaller}
+::: {.nonincremental}
+
++ Drs. Khandelwal and Wickstrom at Intelligent Systems Lab, Halmstad Unversity for sharing the MAREA Gait Database
++ Ryan Mattfeld, Elliot Jesch, and Adam Hoover of the Clemson University Holcombe Department of Electrical and Computer Engineering for making the Clemson Ped-Eval data publicly available
++ Scott Small, Aidan Acquah, Sara Khalid, and Andrew Price from University of Oxford Nuffield Department of Population Health and Lennart von Fritsch from Heidelberg University for making the OxWalk data publicly available
++ Authors of ADEPT, Oak, SDT, $\texttt{stepcount}$, and Verisense for making their algorithms open source 
+
+:::
