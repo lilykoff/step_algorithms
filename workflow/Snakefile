@@ -1,0 +1,22 @@
+
+configfile: "workflow/paths.yaml"
+
+rule all: 
+  input: 
+    acc = config["results"] + "accuracy_stats_bysubject.rds",
+    steps = config["results"] + "step_stats_bysubject.rds",
+    totalsteps = config["results"] + "total_steps_bysubject.rds"
+
+# rule clean_all: 
+#     shell: 
+#         rm -rf 
+
+# sub rules 
+include: config["rules"] + "download_process.smk"
+include: config["rules"] + "resample.smk"
+include: config["rules"] + "reformat.smk"
+include: config["rules"] + "process_actilife.smk"
+include: config["rules"] + "fit_algorithms.smk"
+include: config["rules"] + "join_nest.smk"
+include: config["rules"] + "generate_results_rds.smk"
+include: config["rules"] + "generate_figures.smk"
