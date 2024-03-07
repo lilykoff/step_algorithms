@@ -6,9 +6,11 @@
 
 data/
 results/stepcount
-results/actilife
+results/actilife/marea
 results/stepcount_rf
 results/stepcount_ssl
 *marea*
 *.svg
 *archive
+*cache*
+*_files*
