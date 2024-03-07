@@ -15,7 +15,7 @@ format:
     progress: true
     logo: hopkins_logo.jpeg
 author: "Lily Koffman" 
-date: "March 2024"
+date: ""
 institute: "JHU Biostatistics"
 ---
 
@@ -23,6 +23,9 @@ institute: "JHU Biostatistics"
 ```{r}
 #| include: false
 #| eval: true
+
+
+# TO PUBLISH: https://quarto.org/docs/output-formats/html-publishing.html
 library(gt)
 library(tidyverse)
 `%notin%` = Negate(`%in%`)
@@ -48,6 +51,8 @@ manual_cols = c("steps_adept_30" = coladept, "steps_sdt_30" = colsdt,
 accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_bysubject.rds"))
 ```
 
+## Follow along 
+![Link to slides: <https://lilykoff.github.io/step_algorithms/>](Steps.png){fig-align="left"}
 
 ## Background
 
@@ -105,10 +110,10 @@ accuracy_df = readRDS(here::here("results", "all_algorithms", "accuracy_stats_by
 
 ```{r}
 library(tidyverse)
-clem = readRDS(here::here("data", "processed", "clemson_nested_all.rds")) %>%
-  filter(id_subject == "P15")
+# clem = readRDS(here::here("data", "processed", "clemson_nested_all.rds")) %>%
+#   filter(id_subject == "P15")
 
-
+clem = readRDS(here::here("data", "plotting", "clem_plot.rds"))
 step_temp =
   clem %>%
   filter(time %in% time[90]:time[100] &
@@ -170,9 +175,10 @@ bind_rows(step_temp, step_temp2, step_temp3) %>%
 ### MAREA 
 
 ```{r}
-marea = readRDS(here::here("data", "processed", "marea_nested_all.rds")) %>% 
-  filter(id_subject == "P03")
+# marea = readRDS(here::here("data", "processed", "marea_nested_all.rds")) %>% 
+#   filter(id_subject == "P03")
 
+marea = readRDS(here::here("data", "plotting", "marea_plot.rds"))
 
 step_temp =
   marea %>%
@@ -217,8 +223,9 @@ bind_rows(step_temp, step_temp2)  %>%
 ### OxWalk
 
 ```{r}
-ox = readRDS(here::here("data", "processed", "oxwalk_nested_all.rds")) %>% 
-  filter(id_subject == "P11" & sample_rate==100)
+# ox = readRDS(here::here("data", "processed", "oxwalk_nested_all.rds")) %>% 
+#   filter(id_subject == "P11" & sample_rate==100)
+ox = readRDS(here::here("data", "plotting", "ox_plot.rds"))
 
 step_temp =
   ox %>%
