@@ -1,4 +1,5 @@
 # step_algorithms
+This repository accompanies the manuscript [Evaluating Step Counting Algorithms on Subsecond Wrist-Worn Accelerometry: A Comparison Using Publicly Available Data Sets](https://doi.org/10.1123/jmpb.2024-0008).
 
 ## Description 
 Comparison of step-counting algorithms on three datasets:
