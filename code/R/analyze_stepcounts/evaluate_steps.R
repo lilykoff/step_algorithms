@@ -126,6 +126,15 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
 
   names(labs) = c("acti", "adept", "oak",  "scrf", "scssl","sdt", "vsores", "vsrres")
 
+  cor_df =
+    total_steps %>%
+      filter(cat_activity != "clemson_overall" & id_study == "clemson") %>%
+      pivot_wider(names_from = algorithm, values_from = total_steps)  %>%
+      summarize(across(c(starts_with("steps") & !contains("truth")),
+                       ~cor(.x, steps_truth))) %>%
+    pivot_longer(cols = contains("steps")) %>%
+    mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name))
+
   clem2 =
     total_steps %>%
     filter(cat_activity != "clemson_overall" & id_study == "clemson") %>%
@@ -157,9 +166,19 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
           legend.text = element_text(size = 12))+
     labs(x = "True Steps", y = "Predicted Steps", title = "Clemson")+
     coord_equal()+
-    guides(shape = guide_legend(nrow = 1))
+    guides(shape = guide_legend(nrow = 1))+
+    geom_text(data = cor_df, aes(x = 300, y = 1200, label=
+                                   paste("\u03c1 =", formatC(signif(value, digits=3), digits=2, format="fg", flag="#"))),
+              inherit.aes = FALSE)
 
-
+  cor_df =
+    total_steps %>%
+    filter(id_study == "oxwalk") %>%
+    pivot_wider(names_from = algorithm, values_from = total_steps)  %>%
+    summarize(across(c(starts_with("steps") & !contains("truth")),
+                     ~cor(.x, steps_truth))) %>%
+    pivot_longer(cols = contains("steps")) %>%
+    mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name))
   ox =
     total_steps %>%
     filter(id_study == "oxwalk") %>%
@@ -181,8 +200,19 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
           strip.text = element_text(size = 12),
           legend.text = element_text(size = 12))+
     labs(x = "True Steps", y = "Predicted Steps", title = "OxWalk")+
-    coord_equal()
+    coord_equal()+
+    geom_text(data = cor_df, aes(x = 1500, y = 6100, label=
+                                   paste("\u03c1 =", formatC(signif(value, digits=3), digits=2, format="fg", flag="#"))),
+              inherit.aes = FALSE)
 
+  cor_df =
+    total_steps %>%
+    filter(id_study == "marea") %>%
+    pivot_wider(names_from = algorithm, values_from = total_steps)  %>%
+    summarize(across(c(starts_with("steps") & !contains("truth")),
+                     ~cor(.x, steps_truth))) %>%
+    pivot_longer(cols = contains("steps")) %>%
+    mutate(method = sub(".*steps\\_(.+)\\_30.*", "\\1", name))
 
 
   mar2 =
@@ -216,7 +246,10 @@ if(file.exists(here::here("results/all_algorithms/marea_step_estimates_1sec.csv.
           legend.text = element_text(size = 12))+
     labs(x = "True Steps", y = "Predicted Steps", title = "MAREA")+
     coord_equal()+
-    guides(shape = guide_legend(nrow = 1))
+    guides(shape = guide_legend(nrow = 1))+
+      geom_text(data = cor_df, aes(x = 350, y = 1550, label=
+                                     paste("\u03c1 =", formatC(signif(value, digits=3), digits=2, format="fg", flag="#"))),
+                inherit.aes = FALSE)
 
   svg(here::here("manuscript/figures", "truth_v_predicted.svg"))
   cowplot::plot_grid(clem2, mar2, ox, nrow = 3)

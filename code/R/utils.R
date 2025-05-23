@@ -45,9 +45,75 @@ fit_adept = function(data, sample_rate, templates = template_list) {
   steps_bysecond
 }
 
-fit_sdt =
+estimate_steps_sdtnew = function(
+    data,
+    sample_rate,
+    order = 4L,
+    high = 0.25,
+    low = 2.5,
+    location = c("wrist", "waist"),
+    verbose = TRUE
+) {
+
+  location = match.arg(location, choices = c("wrist", "waist"))
+  threshold = ifelse(location == "wrist", 0.0359, 0.0267)
+
+  # vm threshold based on location
+  # create coefficients for a 4th order bandpass Butterworth filter
+  b <- signal::butter(
+    n = order,
+    W = c(high, low) / (sample_rate / 2),
+    type = "pass",
+    plane = "z"
+  )
+
+  # demean and filter data with dual pass filter to avoid signal shift
+  data <- data %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      vm = sqrt(X^2 + Y^2 + Z^2),
+      demean_vm = vm - mean(vm),
+      filt_vm = signal::filtfilt(b, demean_vm))
+
+  # find indices in which the value immediately before and immediately
+  # after the value is smaller and vm is above threshold
+  data <- data %>%
+    dplyr::mutate(peak =
+                    filt_vm > dplyr::lag(filt_vm) &
+                    filt_vm > dplyr::lead(filt_vm) &
+                    filt_vm > threshold
+    )
+
+  if (verbose) {
+    # return steps by second
+    message("sdt completed")
+  }
+  data %>%
+    dplyr::group_by(time = lubridate::floor_date(HEADER_TIMESTAMP)) %>%
+    dplyr::summarize(steps = sum(peak, na.rm = TRUE))
+
+}
+fit_sdt_new =
   function(data,
-           sample_rate) {
+           sample_rate,
+           loc = "wrist") {
+    if (!"vm" %in% colnames(data)) {
+      data = data %>%
+        mutate(vm = sqrt(X ^ 2 + Y ^ 2 + Z ^ 2))
+    }
+    if (!"HEADER_TIMESTAMP" %in% colnames(data)) {
+      data = data %>%
+        rename(HEADER_TIMESTAMP = tm_dttm)
+    }
+    # vm threshold based on location
+    srate = sample_rate
+
+    estimate_steps_sdtnew(data, sample_rate = srate, location = loc) %>%
+      rename(steps_sdtnew = steps)
+}
+
+fit_sdt =
+  function(data, sample_rate){
     if (!"vm" %in% colnames(data)) {
       data = data %>%
         mutate(vm = sqrt(X ^ 2 + Y ^ 2 + Z ^ 2))
@@ -60,8 +126,7 @@ fit_sdt =
     srate = sample_rate
     walking::estimate_steps_sdt(data, sample_rate = srate) %>%
       rename(steps_sdt = steps)
-  }
-
+}
 fit_oak = function(data) {
   if (!"HEADER_TIMESTAMP" %in% colnames(data)) {
     data = data %>%
